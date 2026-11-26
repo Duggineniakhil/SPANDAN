@@ -1,125 +1,114 @@
-# 09 · Prototype Roadmap
+# 09 · Prototype Roadmap (Software First)
 
-Assumes a team of 4 working part-time alongside college. Roles (one person can hold two):
+Two members, software only for now. Sensor input comes from **public datasets replayed through the pipeline** (MIMII, CWRU, NASA IMS). Hardware is added at the **Hardware Checkpoint** (week 6) once the software is nearly complete.
 
-| Role | Owns |
-|------|------|
-| **HW** — Hardware & firmware | Sensor node, bench rig, data collection sessions |
-| **APP** — Android | Phone gateway, owner UI, offline/SMS, voice record/playback |
-| **ML** — Models | Datasets, features, 3 models, TFLite export, REPORT.md |
-| **BE** — Backend & agent | FastAPI, DB, rules engine, agent, voice service, simulator, dashboard |
+| Member | Area |
+|--------|------|
+| **M1 — Edge & Detection** | Replay input, features, anomaly model, Android app, offline/SMS, voice record/playback |
+| **M2 — Cloud & Intelligence** | Backend, diagnosis, RUL, agent, approval engine, voice (STT/TTS), simulator, dashboard |
 
-Timeline: **8 weeks** (a compressed 4-week path is at the end). The folder doesn't state the prototype deadline, so map weeks to real dates once it's known.
+Task IDs refer to [doc 10](10_Task_Split_Two_Members.md). Timeline: **7 weeks of software + hardware track from week 6**. The prototype deadline isn't in the folder, so map weeks to real dates once it's known.
 
 ---
 
-## Phase 0 — Setup & procurement (Week 0, 3–4 days)
+## Phase 0 — Foundations (first 2–3 days)
 
-| Task | Owner | Output |
-|------|-------|--------|
-| Order ESP32, 2× ADXL345, magnets, motor, bearings, pillow blocks, safety gear | HW | Parts ordered (motor + bearings have the longest lead time — order day 1) |
-| Create monorepo with folder layout (doc 02 §5), README, `.gitignore`, `.env.example` | BE | Repo on GitHub |
-| Download MIMII, CWRU, NASA IMS; write `MANIFEST.csv` | ML | Data ready |
-| Android project skeleton (Compose, Room, foreground service) | APP | Builds and runs |
-| Get API keys: Anthropic, Bhashini (TTS/STT backup); test IndicConformer + Parler-TTS locally | BE | "Hello" voice in kn + hi |
-| Book 3–5 mill owner interviews + 1 mill visit | All | Calendar |
+| Work | Owner |
+|------|-------|
+| Agree shared contracts C1–C4 (features, API JSON, plan schema, window file format) | M1 + M2 |
+| Download MIMII, CWRU, NASA IMS | M1 (MIMII), M2 (CWRU, IMS) |
+| Android skeleton (M1-03) | M1 |
+| FastAPI + Postgres + migrations (M2-01) | M2 |
+| Test Gnani API: Kannada + Hindi TTS and STT work, note audio formats, latency and limits | M2 |
 
-**Exit:** parts arriving, repo exists, datasets on disk, voice models produce audio.
+**Exit:** contracts written, datasets on disk, both skeletons run.
 
 ---
 
 ## Phase 1 — Thin end-to-end slice (Weeks 1–2)  ⭐ most important
 
-Goal: one ugly but complete path through every box, using simple placeholders.
+One rough but complete path through every box, using placeholders.
 
-| Task | Owner | Placeholder allowed |
+| Work | Owner | Placeholder allowed |
 |------|-------|---------------------|
-| Firmware: ADXL345 at 3,200 Hz, stream chunked windows over BLE; **measure throughput** | HW | — |
-| Phone: receive windows, compute 5 features (RMS, peak, crest, kurtosis, 1×), show live value | APP | Few features |
-| Phone: z-score threshold anomaly rule (no ML yet), local Room store, sync to API | APP | Rule instead of AE |
-| API: `/telemetry/batch`, `/machines`, Postgres via docker compose, Alembic migrations | BE | — |
-| Worker: fake diagnosis ("bearing_outer, 0.7, RUL 4–8 days") on anomaly event | BE | Hard-coded |
-| Agent v0: Messages API tool loop with `get_machine_context`, `search_parts`, `find_repair_slots`, `submit_plan` on simulator data | BE | 3 dealers, 2 mechanics |
-| Rules engine v0: spending limit + state machine + audit log | BE | — |
-| Phone: plan card with Approve/Reject buttons → `/plans/{id}/decision` | APP | Tap only, no voice |
-| Python feature module + golden file | ML | — |
+| Dataset → C4 converters + replay sequences (M1-01, M1-02) | M1 | — |
+| Phone replay input, Room DB, sync worker (M1-04 – M1-06) | M1 | 5 simple features, z-score rule instead of ML |
+| Telemetry API, audit log, fake-telemetry script, server anomaly rule (M2-02 – M2-07) | M2 | — |
+| Simulator + agent v0 with core tools (M2-08, M2-10 – M2-12) | M2 | Hard-coded diagnosis "bearing_outer, 0.7, 4–8 days" |
+| Rules engine v0: spending limit + states + audit (part of M2-13, M2-15) | M2 | — |
+| Plan card with Approve/Reject (M1-23) | M1 | Tap only, no voice |
 
-**Exit demo (end of week 2):** shake/tap the sensor → phone alert → plan card appears → tap Approve → audit log shows booking in sandbox.
+**Exit (end of week 2):** replay a fault sequence → phone alert → plan card → tap Approve → audit log shows sandbox booking.
 
 ---
 
-## Phase 2 — Bench rig & data collection (Weeks 2–4, overlaps)
+## Phase 2 — Features & real models (Weeks 2–5)
 
-| Task | Owner | Output |
-|------|-------|--------|
-| Build bench rig with guards (doc 03 §5) | HW | Running rig |
-| Debug-mode raw window recording on phone/laptop | APP/HW | Raw `.npy` per window with session metadata |
-| Record sessions: Normal ×6, IMB ×3, MIS ×3, LOOSE ×3, BRG-OR ×3 | HW | ~20 sessions, logged |
-| Start progressive-wear runs (BRG-DEG), repeat across days | HW | Run-to-failure-ish data |
-| Mill visit: record normal running, nameplate, owner interview | All | Real-world data + field notes |
-| Owner/mechanic interviews | All | `field_notes.md` |
-
-**Exit:** labelled bench dataset with session-level splits; at least one real-mill normal recording.
-
----
-
-## Phase 3 — Real models (Weeks 3–5)
-
-| Task | Owner | Output |
-|------|-------|--------|
-| Full feature set (~30) in Python; port to Kotlin; golden test passes in both | ML + APP | Parity ✅ |
-| Anomaly: AE + Isolation Forest on MIMII (held-out IDs) → AUC | ML | Table |
-| Anomaly: AE on bench normal → AUC per fault + false alarms/week | ML | Table |
-| Export TFLite + scaler; integrate on phone; health index; per-machine threshold from baseline | ML + APP | On-device AE |
-| Diagnosis: bearing frequency rules + HistGB classifier; CWRU (split by load) + bench | ML | Confusion matrices |
-| RUL: exponential fit + bootstrap interval on IMS (leave-one-bearing-out) | ML | MAE + coverage |
-| Wire real diagnosis + RUL into worker, replacing fakes | BE + ML | Real outputs in plans |
-| `ml/REPORT.md` v1 | ML | Numbers for slide 9 |
-
-**Exit:** induced bench fault → real AE alert on phone → real top-3 diagnosis with evidence string.
-
----
-
-## Phase 4 — Agent, approvals, voice (Weeks 4–6)
-
-| Task | Owner | Output |
-|------|-------|--------|
-| Full tool set incl. `request_quote`, `check_mechanic_availability`; simulator with messy multilingual replies + injection message | BE | `sim/` |
-| Rules engine: all 5 checks, retries, expiry, 24 h reminder (APScheduler), executor for approved actions | BE | Safety tests pass |
-| Voice out: LLM voice_script → TTS (kn/hi) → audio on plan; phone plays it | BE + APP | Voice note |
-| Voice in: record → upload → IndicConformer → keyword intent → LLM fallback → decision | BE + APP | Voice approval |
-| Offline SMS path + sensor-silent alert | APP | Works with data off |
-| False-alarm button → threshold adjust; mechanic job card form → baseline reset | APP + BE | Feedback loop |
-| Agent eval: 20 scripted incidents | BE | Pass rate |
-| Voice eval: 40 yes/no clips from friends/family (kn + hi) | BE | Accuracy |
-
-**Exit:** full demo script (doc 08 §3) works end to end on the bench, including voice approval.
-
----
-
-## Phase 5 — Hardening, dashboard, demo polish (Weeks 6–7)
-
-| Task | Owner | Output |
-|------|-------|--------|
-| Judge dashboard: live health chart, events, plan timeline, audit log | BE | Web page |
-| 24 h soak test; fix crashes, reconnects, memory | APP + HW | Stable |
-| Replay mode (recorded session → pipeline) as demo backup | BE + APP | Backup path |
-| Enclosure + clean wiring for sensor node; label the rig | HW | Presentable hardware |
-| Kannada/Hindi copy review by a native speaker | All | Correct language |
-| Update deck: real metrics on slide 9, photos of rig + app, field-interview quotes | All | Deck v2 |
-
-**Exit:** two clean rehearsals in a row with no manual fixes.
-
----
-
-## Phase 6 — Final (Week 8)
-
-| Task | Owner |
+| Work | Owner |
 |------|-------|
-| Record 3-min demo video (backup + submission) | All |
-| Final README in repo: setup, run, architecture image, metrics, limitations | BE |
-| Freeze code, tag `v1.0-prototype`, export APK | All |
-| Rehearse Q&A: data leakage, why one LLM, safety, cost, scaling, business model | All |
+| Full features in Python + Kotlin, golden test passes (M1-07 – M1-09) | M1 |
+| Anomaly: IF baseline + autoencoder, leakage-free eval, TFLite export (M1-10 – M1-14) | M1 |
+| On-device inference, baseline mode, health index, alerts, SMS (M1-15 – M1-20) | M1 |
+| Diagnosis: bearing frequency rules + classifier + eval on CWRU (M2-19 – M2-23) | M2 |
+| RUL: exponential fit + bootstrap, eval on IMS (M2-24, M2-25) | M2 (or M1 if M2 is behind) |
+| Analytics worker wiring real diagnosis + RUL (M2-26) | M2 |
+
+**Exit:** replayed fault → real autoencoder alert on phone → real top-3 diagnosis with evidence → RUL range in plan. Metrics written to `ml/REPORT.md`.
+
+---
+
+## Phase 3 — Agent, approvals, voice (Weeks 4–6)
+
+| Work | Owner |
+|------|-------|
+| Messy multilingual dealer replies + injection test case (M2-09) | M2 |
+| Full rules engine, retries, scheduler, executor, approval from registered number only (M2-13 – M2-18) | M2 |
+| Gnani voice adapter (TTS + STT), phrase cache, intent detection, voice endpoints, re-plan on question (M2-27 – M2-31) | M2 |
+| Home, setup, voice playback, voice reply, false alarm, job card, kn/hi/en strings (M1-21, M1-22, M1-24 – M1-28) | M1 |
+
+**Exit:** full flow on replay: alert → diagnosis → plan → Kannada/Hindi voice note → voice approval → sandbox execution.
+
+---
+
+## 🔔 HARDWARE CHECKPOINT (start of week 6, when Phase 3 is nearly done)
+
+> **Reminder:** when the end-to-end flow works on replayed data, start the hardware track. The software doesn't need to change; the sensor is just a new input source.
+
+### Why build it (worth the effort)
+- **The submission promises it.** `PS_Details.txt` and slides 3, 5, 7, 8 and 11 describe a clip-on ESP32 + accelerometer sensor; slide 9 promises "our own recordings" and "our bench rig". A software-only prototype leaves that promise open.
+- **It's the most memorable part of the demo.** Judges remember a phone reacting live to a real vibrating machine far more than a chart from a dataset.
+- **It proves the "low-cost" and "works offline on the phone" claims** instead of just stating them.
+- **It makes the results more believable:** a few minutes of your own normal vs fault data checks the models outside the lab datasets.
+
+### What to build (minimal, about ₹600–1,000, about 1–1.5 weeks)
+
+| Step | Work | Reference |
+|------|------|-----------|
+| H1 | Buy ESP32 DevKit, ADXL345 module, neodymium magnet, USB adapter. **Order at the start of week 5** so parts arrive by week 6 | doc 03 §1 |
+| H2 | Firmware: ADXL345 at 3,200 Hz over SPI, chunked BLE streaming, CONTROL/STATUS characteristics | doc 03 §2, §4 |
+| H3 | Measure BLE throughput on your phone; decimate X/Z if needed | doc 03 §4 |
+| H4 | Android: BLE `WindowSource` (scan, connect, reassemble, CRC, reconnect) — plugs into the existing pipeline | doc 04 §3 |
+| H5 | Mount the sensor on any motor you have (table fan, water pump, mixer-grinder) | — |
+| H6 | Record a few sessions: normal (re-mounted 3×), imbalance (coin/tape weight on blade), looseness (loosened mount) | doc 03 §5 |
+| H7 | Run the anomaly model on these recordings; add the numbers to `ml/REPORT.md` | doc 05 |
+| H8 | Watchdog + heartbeat; tidy box for the sensor | doc 03 §4 |
+
+**Optional, only if time remains:** the full bench rig with a damaged bearing (doc 03 §5) for bearing-fault data.
+
+**If the hardware isn't ready in time:** keep replay as the main path; nothing in the software depends on the sensor.
+
+---
+
+## Phase 4 — Integration & hardening (Weeks 6–7)
+
+| Work | Owner |
+|------|-------|
+| Feedback endpoints, server-side replay tool, dashboard (M2-32 – M2-35) | M2 |
+| Unit, safety, agent and voice tests (M2-36 – M2-39) | M2 |
+| App tests + 24 h soak on replay (M1-29, M1-30) | M1 |
+| Hardware track H1–H8 (alongside) | M1 (firmware + BLE), M2 helps with recordings |
+
+**Exit:** two full runs in a row with no manual fixes, all safety tests at 0 unauthorised actions, and (if hardware is done) the same flow driven by the live sensor.
 
 ---
 
@@ -127,29 +116,20 @@ Goal: one ugly but complete path through every box, using simple placeholders.
 
 | Week | Milestone | Proof |
 |------|-----------|-------|
-| 0 | Kick-off | Parts ordered, repo, datasets |
-| 2 | **M1 Thin slice** | Tap sensor → plan → approve (tap) |
-| 4 | **M2 Data** | Labelled bench sessions + mill recording |
-| 5 | **M3 Real models** | On-device AE + real diagnosis/RUL + REPORT v1 |
-| 6 | **M4 Full loop** | Voice approval, offline SMS, feedback loop |
-| 7 | **M5 Demo-ready** | Dashboard, soak test, 2 clean rehearsals |
-| 8 | **M6 Submitted** | Video, repo, APK, updated deck |
+| 0 | Foundations | Contracts, datasets, skeletons |
+| 2 | **M1 Thin slice** | Replay fault → plan → tap approve |
+| 5 | **M2 Real models** | On-device AE, real diagnosis + RUL, REPORT v1 |
+| 6 | **M3 Full software loop** | Voice approval end to end on replay · 🔔 **start hardware** |
+| 7 | **M4 Software complete** | Tests pass, soak done, dashboard |
+| 7–8 | **M5 Hardware added** | Live sensor drives the same flow |
 
-## Compressed 4-week path (if the deadline is close)
+## Compressed 4-week path
 
 | Week | Do | Cut / simplify |
 |------|----|----------------|
-| 1 | Phase 0 + Phase 1 together; buy a ready-made small motor + pillow blocks | No enclosure |
-| 2 | Bench sessions (Normal, IMB, BRG-OR only); AE + IF on bench + MIMII | Skip MIS/LOOSE; skip real-mill visit if impossible |
-| 3 | Rules-based diagnosis + classifier on CWRU; RUL on IMS; agent + rules engine + Kannada voice out, tap-to-approve | Hindi voice optional; voice reply only keyword-based |
-| 4 | Voice reply, SMS, dashboard-lite (Streamlit), rehearsals, video | Mechanic job card as a simple form |
+| 1 | Phase 0 + Phase 1 | Fewer features |
+| 2 | Anomaly AE + IF, on-device; rules-based diagnosis on CWRU | Skip classifier if short of time |
+| 3 | RUL on IMS; full approval engine; Kannada voice out, tap approve | Hindi voice optional |
+| 4 | Voice reply (keywords), SMS, Streamlit dashboard-lite, tests · 🔔 hardware only if week 3 finished on time | Hardware optional |
 
-Never cut: the approval/rules engine, the leakage-free evaluation, offline detection on the phone. Those are the core claims in the deck.
-
-## Day-1 checklist
-- [ ] Order hardware (motor, bearings, ESP32, ADXL345 ×2, magnets)
-- [ ] Create GitHub repo + folder layout + `.env.example`
-- [ ] Start MIMII / CWRU / IMS downloads
-- [ ] Android skeleton builds
-- [ ] `docker compose up` with Postgres + empty FastAPI
-- [ ] Message 5 mill owners for interviews
+Never cut: the approval/rules engine, the leakage-free evaluation, offline detection on the phone.

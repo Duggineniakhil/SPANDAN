@@ -48,8 +48,8 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 | GET | `/plans/{id}` | Plan detail |
 | GET | `/owners/{id}/plans?state=pending` | Pending plans for app |
 | POST | `/plans/{id}/decision` | `{ "decision": "approve" \| "reject", "channel": "tap" \| "voice", "audio_ref": "..." }` |
-| POST | `/plans/{id}/voice-reply` | Multipart audio upload → STT → intent → decision |
-| GET | `/plans/{id}/voice-note` | Generated TTS audio (ogg/mp3) |
+| POST | `/plans/{id}/voice-reply` | Multipart audio upload → Gnani STT → intent → decision |
+| GET | `/plans/{id}/voice-note` | Gnani-generated TTS audio (ogg/mp3), or cached fallback |
 
 ### Feedback
 | Method | Path | Purpose |

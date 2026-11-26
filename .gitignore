@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Data (large, downloaded separately)
+ml/data/
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

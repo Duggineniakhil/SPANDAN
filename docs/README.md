@@ -18,6 +18,7 @@ SPANDAN predicts breakdowns in small flour mills. A clip-on vibration sensor sen
 | 07 | [API & Data Model](07_API_Data_Model.md) | REST endpoints, payloads, PostgreSQL schema |
 | 08 | [Test, Demo & Risk Plan](08_Test_Demo_Risk_Plan.md) | Testing, the demo script, metrics to report, risks |
 | 09 | [Roadmap](09_Roadmap.md) | Phase-by-phase build plan with tasks, owners and exit criteria |
+| 10 | [Task Split — Two Members](10_Task_Split_Two_Members.md) | Software-only development tasks (hardware deferred) for Member 1 (Edge & Detection) and Member 2 (Cloud & Intelligence) |
 
 ## Golden rules for the whole build
 

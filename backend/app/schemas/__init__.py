@@ -1,0 +1,122 @@
+"""Request/response schemas (contract C2, doc 07 §1)."""
+import uuid
+from datetime import datetime
+from typing import Annotated, Literal
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+Language = Literal["kn", "hi", "en"]
+HHMM = Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
+# ---------- Owners ----------
+
+class IdleWindow(StrictModel):
+    dow: int = Field(ge=0, le=6, description="0 = Monday … 6 = Sunday")
+    start: HHMM
+    end: HHMM
+
+    @model_validator(mode="after")
+    def _start_before_end(self) -> "IdleWindow":
+        if self.start >= self.end:
+            raise ValueError("start must be before end")
+        return self
+
+
+class OwnerCreate(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    phone: str = Field(pattern=r"^\+?[0-9]{10,13}$")
+    language: Language
+    spending_limit_inr: int = Field(default=2000, ge=0, le=500_000)
+    idle_windows: list[IdleWindow] = Field(default_factory=list, max_length=21)
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
+
+
+class OwnerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    phone: str
+    language: Language
+    spending_limit_inr: int
+    idle_windows: list[IdleWindow]
+    lat: float | None
+    lng: float | None
+    created_at: datetime
+
+
+# ---------- Machines ----------
+
+class MachineCreate(StrictModel):
+    owner_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=120)
+    machine_type: str = Field(default="flour_mill_motor", max_length=60)
+    motor_rpm: int | None = Field(default=None, gt=0, le=20_000)
+    bearing_model: str | None = Field(default=None, max_length=40)
+    sensor_id: str | None = Field(default=None, max_length=64)
+
+
+class MachineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    name: str
+    machine_type: str
+    motor_rpm: int | None
+    bearing_model: str | None
+    sensor_id: str | None
+    state: str
+    anomaly_threshold: float | None
+    model_version: str | None
+    baseline_started_at: datetime | None
+    baseline_done_at: datetime | None
+    created_at: datetime
+
+
+class BaselineComplete(StrictModel):
+    anomaly_threshold: float = Field(gt=0)
+    model_version: str = Field(min_length=1, max_length=60)
+
+
+# ---------- Telemetry ----------
+
+class TelemetryRow(StrictModel):
+    row_id: uuid.UUID
+    ts: AwareDatetime
+    features: dict[str, float] = Field(min_length=1, max_length=100)
+    anomaly_score: float | None = Field(default=None, ge=0)
+    health_index: float | None = Field(default=None, ge=0, le=100)
+    rpm_estimate: float | None = Field(default=None, ge=0)
+    model_version: str | None = Field(default=None, max_length=60)
+
+    @field_validator("features")
+    @classmethod
+    def _feature_names(cls, v: dict[str, float]) -> dict[str, float]:
+        for name in v:
+            if not name or len(name) > 40:
+                raise ValueError(f"invalid feature name: {name!r}")
+        return v
+
+
+class TelemetryBatch(StrictModel):
+    device_id: str = Field(min_length=1, max_length=64)
+    machine_id: uuid.UUID
+    rows: list[TelemetryRow] = Field(min_length=1, max_length=1000)
+
+
+class RejectedRow(BaseModel):
+    row_id: uuid.UUID
+    reason: str
+
+
+class TelemetryBatchResult(BaseModel):
+    accepted: int
+    duplicates: int
+    rejected: list[RejectedRow]

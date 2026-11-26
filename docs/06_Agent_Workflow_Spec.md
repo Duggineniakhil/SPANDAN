@@ -75,8 +75,8 @@ Rules engine checks (all must pass, else plan rejected back to agent with reason
 
 | Direction | Steps |
 |-----------|-------|
-| Out (plan → owner) | LLM writes `voice_script.text` in Kannada/Hindi → TTS (Indic Parler-TTS local, or Bhashini TTS API) → OGG/Opus file → app notification / WhatsApp sandbox |
-| In (owner → system) | Owner records reply → upload → STT (AI4Bharat IndicConformer, kn/hi) → transcript → **intent classifier** |
+| Out (plan → owner) | LLM writes `voice_script.text` in Kannada/Hindi → **Gnani TTS** → audio file (converted to OGG/Opus with ffmpeg if needed) → app notification / WhatsApp sandbox |
+| In (owner → system) | Owner records reply → upload → convert to the format/sample rate Gnani STT expects (ffmpeg) → **Gnani STT** (kn/hi) → transcript → **intent classifier** |
 
 Intent classifier (rules first, LLM only as fallback):
 1. Keyword match on transcript: approve = {ಹೌದು, ಸರಿ, ಓಕೆ, houdu, sari, हाँ, ठीक है, haan, theek, ok}; reject = {ಬೇಡ, ಇಲ್ಲ, beda, illa, नहीं, मत, nahi, mat}.
@@ -84,7 +84,13 @@ Intent classifier (rules first, LLM only as fallback):
 3. `unclear` → ask again (max 2 times), then fall back to tap buttons. `question` (e.g. "can it be Monday?") → agent re-plans with the constraint and creates a new pending plan.
 4. The decision is stored with transcript and audio reference for the audit log.
 
-Pre-generate and cache TTS for fixed phrases (greetings, "please reply yes or no") so the demo doesn't depend on slow TTS.
+### Gnani integration rules
+- **Backend only.** The Android app never holds the Gnani key; it uploads/downloads audio via our API.
+- **Adapter.** `voice/provider.py` defines `VoiceProvider` with `tts(text, lang) -> bytes` and `stt(audio, lang) -> transcript`. `voice/gnani.py` implements it. Switching provider = one new file.
+- **Check before building:** Kannada support for both TTS and STT (and available voices), accepted audio formats and sample rates, latency for a 30–40 s note, rate limits and credit expiry.
+- **Latency:** start TTS as soon as the rules engine accepts the plan, so the voice note is ready when the owner opens it.
+- **Cache + fallback:** pre-generate fixed phrases (greetings, "please reply yes or no", "plan approved") and 2–3 complete demo voice notes; store in `backend/app/voice/cache/`. On Gnani error/timeout (> 15 s) → use cached audio or send text + tap buttons.
+- **Privacy:** the owner's voice is sent to Gnani; this is stated in the consent screen at setup. Store only the transcript and a reference to the audio in the audit log.
 
 ## 7. LLM configuration
 

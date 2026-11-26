@@ -31,7 +31,7 @@ The prototype must convince judges of three things:
 - **F6 RUL estimate:** days-to-limit range or "not enough data".
 - **F7 Coordinator agent:** one LLM with tools: get quotes, check mechanic availability, find idle slot, draft plan + voice script.
 - **F8 Approval workflow:** rules engine with states pending → approved / rejected / expired, spending limit, 24 h reminder, never auto-approve, audit log.
-- **F9 Voice:** TTS voice note in Kannada and Hindi; owner replies by voice ("haan / houdu / illa / nahi") → STT → intent.
+- **F9 Voice:** TTS voice note in Kannada and Hindi; owner replies by voice ("haan / houdu / illa / nahi") → STT → intent. Speech provider: **Gnani API** (TTS + STT), called from the backend.
 - **F10 Repair feedback:** mechanic job card (fault label) + post-repair data → new baseline.
 - **F11 Owner app screens:** health score, alerts, plan card with Approve/Reject buttons (fallback to voice), false-alarm button.
 

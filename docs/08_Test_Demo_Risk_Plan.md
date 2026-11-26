@@ -12,7 +12,7 @@
 | Replay test | Feed recorded bench session (normal → fault) through the phone pipeline in "replay mode" | `sim/replay.py` + debug build | Alert raised, correct top-1 fault |
 | Offline | Data off during fault | Manual on device | SMS within 2 min; rows sync after reconnect, no duplicates |
 | Soak | 24 h bench run | Manual | No crash, no leak, ≤ 1 false alarm |
-| Voice | 40 clips (10 speakers × kn/hi × yes/no) | STT + intent script | ≥ 95 % correct, unclear → re-ask |
+| Voice | 40 clips (10 speakers × kn/hi × yes/no) | Gnani STT + intent script | ≥ 95 % correct, unclear → re-ask |
 | Agent eval | 20 scripted incidents (doc 06 §9) | pytest + live API | ≥ 18/20 pass, 0 unauthorised actions |
 
 ## 2. Metrics to report (fill slide 9)
@@ -58,8 +58,9 @@
 | R3 | Bench doesn't reproduce progressive wear in time | H | M | Use IMS for RUL claims; bench sand/no-grease runs over several sessions; show RUL in hours on bench |
 | R4 | Domain gap: CWRU (12 kHz lab) vs our sensor | H | M | Resample, rules-based layer (physics) carries generalisation; validate on bench |
 | R5 | MIMII is audio not vibration | — | L | Present it as method validation; bench is the vibration evidence |
-| R6 | Kannada/Hindi STT errors on yes/no | M | H | Keyword rules + re-ask + tap fallback; test 40 clips |
-| R7 | TTS too slow on CPU | M | L | Bhashini API or pre-generate; cache phrases |
+| R6 | Kannada/Hindi STT errors on yes/no | M | H | Gnani STT (built for code-mixed speech) + keyword rules + re-ask + tap fallback; test 40 clips |
+| R7 | Gnani API slow, down, out of credits, or no network at demo | M | M | Start TTS early; cached phrases + pre-generated demo notes; text + tap fallback; monitor credit balance |
+| R7b | Owner voice sent to a third party | — | M | Consent at setup; store transcript + reference only |
 | R8 | LLM invents prices/slots | L | H | Rules engine verifies every ID/price against DB; strict tool schemas |
 | R9 | Prompt injection via dealer replies | M | H | Replies treated as data; executor only runs rule-validated actions; injection test in suite |
 | R10 | Android kills background service | M | M | Foreground service, battery-opt exemption, boot receiver |
