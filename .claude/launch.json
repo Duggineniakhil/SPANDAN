@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "E:/Tech4Bharath/backend/.venv/Scripts/uvicorn.exe",
+      "runtimeArgs": ["app.main:app", "--port", "8000", "--app-dir", "E:/Tech4Bharath/backend", "--env-file", "E:/Tech4Bharath/backend/.env"],
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "E:/Tech4Bharath/frontend", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
