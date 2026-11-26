@@ -1,0 +1,60 @@
+1. Brief about your idea.
+
+Small flour mills have old machinery which breaks down frequently. This requires days of downtime while waiting for a mechanic and replacement parts. We attach a cheap clip-on acceleration monitor onto the motor and connect it to an inexpensive Android phone. The Android phone automatically learns about the normal behaviour of the machine and detects early indicators of breakdowns. Using models we can predict what is likely to be wrong (e.g. worn bearing) and when it will fail (i.e. How many days left until failure). From here an AI agent can automatically create a maintenance plan for the owner by finding the best price for replacement parts from nearby dealers, finding a free mechanic and choosing some downtime for them. A voice note in kannada or hindi will be sent to the owner to approve or reject the plan. No money, downtime or personal information will be used unless approved by the owner.
+
+
+
+2. Detailed explanation of the idea.
+
+1. THE PROBLEM
+Small flour mill owners have second hand or old machines. They diagnose the condition of the machines by ear and touch. The machine runs till it breaks down and then someone contacts any available mechanic. The part is bought from the town. This means that each time the machine breaks down there is lost production, orders missed out on, emergency pricing of parts and paying employees who aren’t working. There are condition monitoring systems for industry however they are designed for large plants. They require a high number of sensors, a reliability team and constant connection. They only provide alerts.
+
+2. OUR SOLUTION
+Our solution uses a low-cost clip-on sensor and Android phone to detect early signs of failure. Then an AI agent comes up with a repair plan which is then approved by the owner. We have split the process into 4 steps:
+Sense
+A clip-on accelerometer (ESP32) is attached to the motor or bearing housing to detect vibrations and send data to your phone via Bluetooth.
+Detect
+The phone analyses the data extracting features and feeds them to an anomaly model trained on how this machine should behave. This means it can run offline. If no network connection the alert will be sent via SMS.
+Plan
+Using the models we can determine what is likely to be wrong and how many days until failure. Our AI agent will search dealers for quotes, check how much the owner wants to spend, find a mechanic and book them in for an idle time.
+Approve
+The repair plan will be sent to the Owner as a voice note in Kannada or Hindi. They can then approve or decline.
+
+In this example the vibration on the motor of the mill doubles and the health score drops to 41%. Using our models we can see that there is a worn bearing and it could fail in 4-8 days. Our Agent searches for bearings and finds one for 1450rs from a local dealer. It books a mechanic to come on Sunday at 10am. The Owner approves using their voice and the bearing is changed on Sunday meaning no losses in production.
+
+3. Architecture
+- On-site: Sensor node with accelerometer + ESP32. Phone gateway with feature extraction, anomaly detection model (TensorFlow Lite), a local database and sync queue.
+- In the cloud: Ingestion server (FastAPI, PostgreSQL), fault diagnosis models and remaining life models. One LLM based maintenance coordinator with tools. Rules based workflow for approval system with audit log
+- People: Owner, mechanics and dealers (Contacted via WhatsApp. Sandbox in prototype). JanAI Cafe Operator to set up and get permissions.
+Just one LLM component. The detection and diagnosis models are trained. Comparison of quotes, scheduling and approval models are rule based.
+
+4. AI Models (Validated separately).
+Anomaly detection: AutoEncoder per machine. Baseline: Isolation Forest. MIMII Machine Sound dataset + our own recordings. AUC score. False alarms per machine per week.
+Fault diagnosis: Bearing fault frequency rules and classifier. CWRU bearing dataset + our bench. Accuracy + Confusion matrix.
+Remaining life: Trend fitting with uncertainty. NASA IMS Run to failure bearing dataset. Error in days. Interval coverage.
+Data was split per machine and session. No Random windows. To ensure no data leakage.
+
+5. REAL WORLD SCENARIOS
+The contact sensor is just used for a single machine. The phone microphone is optional.
+Each sensor corresponds to just one machine.
+The ‘baseline’ is built up over 3 to 5 days of operation. Worn machines will be checked by a technician when setting up and against reference profiles.
+The phone is mounted in a static position using mains power and stores 30 days of feature data offline. No raw audio data is stored or uploaded.
+
+6. OWNER CONTROLLED
+All actions are automatic.
+Logging data, sending alerts, requesting quotes, and finding out if mechanics are available.
+All actions require owner approval. This includes purchasing a part (within budget), confirming a mechanic, scheduling downtime, and sending out data. If there is no response no action will be taken.
+There will never be any payments made or turning a machine on/off.
+Every time a repair is carried out the mechanic will note the problem on their job card. This will reset the baseline of the machine and improve the models. The owner can also log false alarms to adjust how sensitive the alerts are.
+
+7. BHARAT FOCUSED
+The system is voice-based in Kannada and Hindi (speech to text using AI4Bharat IndicConformer, speech using Indic Parler-TTS or Bhashini). The system works on basic android phones. All detection is done offline with SMS as a backup. Setup and permission is assisted by the JanAI Cafe network.
+
+8. BUSINESS MODEL
+A small monthly cost is charged per machine. Local mechanics can purchase a paid job planner to see which machines in their area are likely to fail. Dealers will be paid a referral fee. However we will test all pricing by carrying out interviews in the field and a pilot. We will start with flour mills as these have one or two machines per unit, problems with known vibration signatures, and run for a long period of time. The same method will then be rolled out across powerlooms, pump sets and small machine shops. This will create jobs for local technicians and mechanics by using industrial clusters and JanAI Cafes.
+
+
+
+Additional supporting links (GitHub/ research reference)
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12609400/
