@@ -155,6 +155,8 @@ class PlanOut(BaseModel):
     created_at: datetime
     expires_at: datetime | None
     decided_at: datetime | None
+    decided_via: str | None = None
+    reminded_at: datetime | None = None
 
 
 class AnomalyEventOut(BaseModel):
@@ -180,3 +182,41 @@ class PlannerResultOut(BaseModel):
     provider: str | None = None
     reason: str | None = None
     tool_calls: int = 0
+
+
+# ---------- Approval ----------
+
+class DecisionIn(StrictModel):
+    decision: Literal["approve", "reject"]
+    channel: Literal["tap", "voice", "sms"]
+    from_phone: str = Field(min_length=10, max_length=20, description="Number the reply came from")
+    transcript: str | None = Field(default=None, max_length=2000, description="Voice reply transcript, if any")
+
+
+class DecisionOut(BaseModel):
+    plan: PlanOut
+    executed: bool | None = None  # None for a rejection
+    reason: str | None = None
+    job_id: uuid.UUID | None = None
+    replanning: bool = False
+
+
+class MessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    to_kind: str
+    to_id: uuid.UUID
+    plan_id: uuid.UUID | None
+    event_id: uuid.UUID | None
+    kind: str
+    lang: str
+    text: str
+    channel: str
+    created_at: datetime
+    read_at: datetime | None
+
+
+class SweepOut(BaseModel):
+    reminded: int
+    expired: int

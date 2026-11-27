@@ -46,7 +46,7 @@
 | C4 | Database | Same host | PostgreSQL 16 (TimescaleDB extension optional) | Storage |
 | C5 | Analytics worker | Same host | Python, NumPy/SciPy, scikit-learn, joblib; triggered by event | ML |
 | C6 | Coordinator agent | Same host | Python, Groq (`openai/gpt-oss-120b`) with Gemini fallback, own tool-use loop | LLM (only one) |
-| C7 | Approval engine | Same host | Python rules module + state machine, APScheduler for reminders | Rules |
+| C7 | Approval engine | Same host | Python rules module + state machine (`backend/app/approval/`), in-app background sweep for reminders/expiry | Rules |
 | C8 | Voice service | Same host (no GPU) | **Gnani API** for STT + TTS (Kannada, Hindi) behind a provider-neutral adapter; ffmpeg for audio conversion; cached pre-generated phrases as fallback | Integration |
 | C9 | Messaging adapter | Same host | Sandbox: in-app + simulated inbox; P1: Twilio/Meta WhatsApp sandbox | Integration |
 | C10 | Judge dashboard (P1) | Browser | Streamlit or React + Recharts | UI |

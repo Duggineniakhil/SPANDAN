@@ -29,6 +29,7 @@ PLAN_STATES = ("draft", "pending", "approved", "rejected", "expired", "executed"
 SLOT_STATUSES = ("free", "held", "booked")
 JOB_STATUSES = ("scheduled", "done", "no_show")
 AUDIT_ACTORS = ("system", "agent", "owner", "mechanic", "operator", "device")
+MESSAGE_RECIPIENTS = ("owner", "dealer", "mechanic")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -218,6 +219,7 @@ class Plan(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decided_via: Mapped[str | None] = mapped_column(String(10))
+    reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Job(Base):
@@ -259,3 +261,26 @@ class AuditLog(Base):
     entity: Mapped[str] = mapped_column(String(30))
     entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class Message(Base):
+    """Outgoing messages: to the owner (in their language) and, in the sandbox, to dealers and mechanics.
+    Delivery channels (app push, WhatsApp, voice note) read from here."""
+
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint(_in("to_kind", MESSAGE_RECIPIENTS), name="to_kind_valid"),
+        Index("ix_messages_recipient", "to_kind", "to_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    to_kind: Mapped[str] = mapped_column(String(10))
+    to_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("plans.id"))
+    event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("anomaly_events.id"))
+    kind: Mapped[str] = mapped_column(String(30))
+    lang: Mapped[str] = mapped_column(String(2))
+    text: Mapped[str] = mapped_column(Text)
+    channel: Mapped[str] = mapped_column(String(10), default="app")
+    created_at: Mapped[datetime] = _created_at()
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

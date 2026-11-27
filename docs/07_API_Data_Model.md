@@ -51,7 +51,10 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 | GET | `/machines/{id}/diagnosis/latest` | Top-3 faults + RUL |
 | GET | `/plans/{id}` | Plan detail |
 | GET | `/owners/{id}/plans?state=pending` | Pending plans for app |
-| POST | `/plans/{id}/decision` | `{ "decision": "approve" \| "reject", "channel": "tap" \| "voice", "audio_ref": "..." }` |
+| POST | `/plans/{id}/decision` | `{ "decision": "approve" \| "reject", "channel": "tap" \| "voice" \| "sms", "from_phone": "+91…", "transcript": "..." }` → `{plan, executed, reason, job_id, replanning}`. 403 wrong number, 409 not pending / expired |
+| GET | `/owners/{id}/messages` | Owner's inbox (plan, reminder, booking, expiry … in their language) |
+| POST | `/approval/sweep` | Send due reminders and expire overdue plans now (also runs on a timer) |
+| GET | `/sim/messages?to_kind=dealer\|mechanic` | Sandbox inbox of the simulated dealers / mechanics |
 | POST | `/plans/{id}/voice-reply` | Multipart audio upload → Gnani STT → intent → decision |
 | GET | `/plans/{id}/voice-note` | Gnani-generated TTS audio (ogg/mp3), or cached fallback |
 
@@ -121,12 +124,19 @@ CREATE TABLE quotes (               -- dealer answers; the stored price is the s
 -- mechanic_slots also has held_for_event_id + held_until (slot held while a plan awaits approval)
 -- dealers also has reply_style (how the sandbox dealer writes)
 
+CREATE TABLE messages (             -- outbox; delivery channels (push, WhatsApp, voice note) read from here
+  id UUID PRIMARY KEY, to_kind TEXT CHECK (to_kind IN ('owner','dealer','mechanic')), to_id UUID,
+  plan_id UUID NULL REFERENCES plans(id), event_id UUID NULL REFERENCES anomaly_events(id),
+  kind TEXT, lang TEXT, text TEXT, channel TEXT DEFAULT 'app', created_at TIMESTAMPTZ DEFAULT now(), read_at TIMESTAMPTZ NULL
+);
+
 CREATE TABLE plans (
   id UUID PRIMARY KEY, event_id UUID REFERENCES anomaly_events(id), owner_id UUID REFERENCES owners(id),
   plan JSONB NOT NULL,     -- see doc 06 §4 for schema
   total_cost_inr INT, state TEXT DEFAULT 'pending',  -- draft|pending|approved|rejected|expired|executed|cancelled
   voice_script JSONB, voice_audio_path TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(), expires_at TIMESTAMPTZ, decided_at TIMESTAMPTZ, decided_via TEXT
+  created_at TIMESTAMPTZ DEFAULT now(), expires_at TIMESTAMPTZ, decided_at TIMESTAMPTZ, decided_via TEXT,
+  reminded_at TIMESTAMPTZ NULL
 );
 
 CREATE TABLE jobs (

@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     agent_timeout_s: int = 90
     llm_request_timeout_s: float = 30  # per model call; a hung provider falls back instead of blocking
 
+    # Approval engine: how often to send 24 h reminders / expire 48 h-old plans (0 = off)
+    approval_sweep_interval_s: float = 300
+
     # Anomaly rule on the server (backup for the phone's own alert)
     server_alert_consecutive: int = 3
 

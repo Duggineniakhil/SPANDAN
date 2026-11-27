@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 
-from app.models import Dealer, Job, Mechanic, MechanicSlot, Part, Quote
+from app.models import Dealer, Job, Mechanic, MechanicSlot, Message, Part, Quote
 
 IST = timezone(timedelta(hours=5, minutes=30))
 SITE = (12.2958, 76.6394)  # default mill location (Mysuru) when the owner has none
@@ -61,6 +61,7 @@ def reset(db: Session, now: datetime | None = None, seed: int = 11) -> dict[str,
 
     # Jobs reference slots; quotes reference dealers. Plans keep their own copy of details.
     db.execute(delete(Job))
+    db.execute(delete(Message).where(Message.to_kind.in_(("dealer", "mechanic"))))  # sandbox inboxes
     db.execute(delete(Quote))
     db.execute(update(MechanicSlot).values(held_for_event_id=None))
     db.execute(delete(MechanicSlot))

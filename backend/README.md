@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-03, M2-05, M2-07 – M2-12 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-03, M2-05, M2-07 – M2-18 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -41,7 +41,12 @@ Tests use the `spandan_test` database and wipe it between tests.
 | POST | `/api/v1/events/anomaly` | Phone reports an anomaly → diagnosed → agent plans it in the background |
 | GET | `/api/v1/events?machine_id=` / `/api/v1/events/{id}` | Events with diagnosis and plans |
 | POST | `/api/v1/events/{id}/plan` | Run the agent now |
+| GET | `/api/v1/plans/{id}` / `/api/v1/owners/{id}/plans?state=` | Plans |
+| POST | `/api/v1/plans/{id}/decision` | Owner approve/reject; only from the owner's number (403), only while pending (409); approval runs the sandbox executor |
+| GET | `/api/v1/owners/{id}/messages` | Owner inbox (kn/hi/en) |
+| POST | `/api/v1/approval/sweep` | Reminders (24 h) and expiry (48 h) now; also runs every `APPROVAL_SWEEP_INTERVAL_S` |
 | POST | `/api/v1/sim/reset` | Recreate sandbox dealers, parts, mechanics, calendars |
+| GET | `/api/v1/sim/messages?to_kind=` | What the sandbox dealers / mechanics were sent |
 
 ## Coordinator agent
 
@@ -52,8 +57,14 @@ events are still diagnosed but not planned. Run `POST /api/v1/sim/reset` once so
 Code: `app/agent/` (tools, provider wrapper, loop, prompt), `app/sim/` (sandbox), `app/events.py`,
 `app/analytics/diagnosis_v0.py` (placeholder diagnosis; RUL is a labelled placeholder until M2-24).
 
+## Approval engine
+
+`app/approval/`: state machine, owner decision, executor, reminder/expiry sweep and message templates
+(doc 06 §5). The LLM never approves, books or pays. Silence never approves: plans expire after 48 h.
+The Kannada/Hindi templates in `messages.py` still need a native speaker's check.
+
 ## Notes
-- 14 tables: the 13 from doc 07 plus `quotes` (migrations `0837ce1719ef`, `a6436a90e3ba`). Location is lat/lng floats, not PostGIS.
+- 15 tables: the 13 from doc 07 plus `quotes` and `messages` (migrations `0837ce1719ef`, `a6436a90e3ba`, `de4177445205`). Location is lat/lng floats, not PostGIS.
 - `audit_log` is append-only: a database trigger blocks UPDATE and DELETE.
 - Telemetry rows more than 10 min in the future or older than 60 days are rejected per row; a malformed batch (naive timestamps, NaN, health > 100, empty features) is rejected whole with 422.
 - New migration after changing `app/models`: `.venv/Scripts/alembic revision --autogenerate -m "..."`.

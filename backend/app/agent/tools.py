@@ -14,6 +14,7 @@ from typing import Any, Callable
 from sqlalchemy import any_, select
 from sqlalchemy.orm import Session
 
+from app.approval.state import transition
 from app.audit import audit
 from app.models import AnomalyEvent, Dealer, Diagnosis, Machine, Mechanic, MechanicSlot, Owner, Part, Plan, Quote, Telemetry
 from app.sim.replies import dealer_reply, mechanic_reply
@@ -273,8 +274,9 @@ def submit_plan(ctx: AgentContext, quote_id: str, slot_id: str, fault_code: str,
         "voice_script": {"lang": lang, "text": text},
     }
     plan = Plan(id=uuid.uuid4(), event_id=ctx.event.id, owner_id=ctx.owner.id, plan=plan_json, total_cost_inr=total,
-                state="pending", voice_script={"lang": lang, "text": text}, expires_at=ctx.now + PLAN_TTL)
+                state="draft", voice_script={"lang": lang, "text": text}, expires_at=ctx.now + PLAN_TTL)
     ctx.db.add(plan)
+    transition(ctx.db, plan, "pending", actor="system", details={"rules": "passed", "total_cost_inr": total})
     slot.status = "held"
     slot.held_for_event_id = ctx.event.id
     slot.held_until = plan.expires_at

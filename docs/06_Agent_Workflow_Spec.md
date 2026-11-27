@@ -73,6 +73,15 @@ Rules engine checks (all must pass, else plan rejected back to agent with reason
 - On `approved`, the **executor** (plain code, not the LLM) performs exactly the listed actions in the sandbox: confirms mechanic slot (`held → booked`), sends order confirmation to dealer (no payment — "pay at pickup"), adds downtime to calendar, notifies owner. Each step audited.
 - Never in any state: payments, machine start/stop.
 
+### Implementation (`backend/app/approval/`)
+| Piece | File | Behaviour |
+|-------|------|-----------|
+| State machine | `state.py` | Allowed moves only (draft→pending/cancelled; pending→approved/rejected/expired/cancelled; approved→executed/cancelled; the rest are final). Every move is audited with from/to |
+| Decision | `decision.py` | `POST /plans/{id}/decision`. The plan row is locked. Wrong number → 403 (audited, number never echoed; last 10 digits compared). Not pending, or past `expires_at` → 409 (an overdue plan is expired on the spot). Reject → slot freed, event back to `diagnosed` |
+| Executor | `executor.py` | Runs straight after approval: slot held→booked + job, order confirmation to the dealer ("owner pays at pickup"), downtime recorded, owner told. If the slot is no longer held for this event (or already started) → plan `cancelled`, nothing booked, owner told, and the agent re-plans |
+| Sweep | `sweep.py` | Every `APPROVAL_SWEEP_INTERVAL_S` (default 300 s; also `POST /approval/sweep`): one reminder after 24 h, expiry at 48 h (slot freed, owner told). Never approves |
+| Messages | `messages.py` | `messages` table = outbox. Owner templates in kn/hi/en (reminder, booking confirmed, rejected, expired, slot lost, could not plan, inspection); the plan itself is sent as the agent's voice script. Sandbox dealer/mechanic messages in English. **Kannada/Hindi template wording needs a native speaker's check** |
+
 ## 6. Voice pipeline
 
 | Direction | Steps |
@@ -99,7 +108,7 @@ Intent classifier (rules first, LLM only as fallback):
 - **Providers:** Groq (`openai/gpt-oss-120b`) and Google Gemini (`gemini-3.5-flash-lite`), behind one provider-neutral wrapper (`backend/app/agent/llm.py`). Our backend runs the tool loop (`backend/app/agent/planner.py`).
 - **Order and fallback:** `AGENT_PROVIDERS=groq,gemini` (default). The next provider takes over on **any** failure: API error, rate limit, timeout, or a plan the rules keep rejecting. Quotes already requested are kept.
 - **Why Groq first:** in live tests (27 Nov 2026) Groq wrote correct Kannada and Hindi script first time. Gemini flash models returned 503 (overloaded) on the free tier; `gemini-3.5-flash-lite` first wrote Kannada in English letters, then corrected itself after the rule's rejection message.
-- **Limits:** 30 s per model call, 90 s per plan, 12 tool calls, 3 rejected submissions per provider. On failure the event stays `diagnosed` and the failure is audited (owner template message comes with the voice task).
+- **Limits:** 30 s per model call, 90 s per plan, 12 tool calls, 3 rejected submissions per provider. On failure the event stays `diagnosed`, the failure is audited and the owner gets a "could not plan, please call a mechanic" message (once per event).
 - **Keys:** `GROQ_API_KEY`, `GEMINI_API_KEY` in `backend/.env` (never committed). Models are settings (`GROQ_MODEL`, `GEMINI_MODEL`).
 - **Tests** use a scripted fake model (`tests/test_agent.py`), so they never call a real API.
 

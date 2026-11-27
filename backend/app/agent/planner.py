@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 from app.agent.llm import Provider, ProviderError, ToolDef, ToolResult, default_providers
 from app.agent.prompts import SYSTEM_PROMPT, user_message
 from app.agent.tools import TOOLS, AgentContext, execute
+from app.approval.messages import notify_owner, send
 from app.audit import audit
 from app.config import get_settings
-from app.models import AnomalyEvent, Diagnosis, Machine, Owner
+from app.models import AnomalyEvent, Diagnosis, Machine, Owner, Plan
 
 log = logging.getLogger(__name__)
 MAX_FAILED_SUBMISSIONS = 3
@@ -84,6 +85,7 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
     if diagnosis is None or not diagnosis.faults or diagnosis.faults[0]["fault"] == "unknown":
         audit(db, actor="system", action="agent_skipped", entity="anomaly_event", entity_id=event.id,
               details={"reason": "no clear diagnosis; owner should get the machine inspected"})
+        notify_owner(db, owner, "inspection", event_id=event.id, once=True, machine=machine.name)
         db.commit()
         return PlannerResult("skipped", reason="no clear diagnosis; recommend an inspection")
 
@@ -91,6 +93,7 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
     if not providers:
         audit(db, actor="system", action="agent_unavailable", entity="anomaly_event", entity_id=event.id,
               details={"reason": "no LLM API key configured"})
+        notify_owner(db, owner, "could_not_plan", event_id=event.id, once=True, machine=machine.name)
         db.commit()
         return PlannerResult("failed", reason="no LLM API key configured (GEMINI_API_KEY / GROQ_API_KEY)")
 
@@ -106,6 +109,10 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
             total_calls += calls
             audit(db, actor="agent", action="plan_submitted", entity="plan", entity_id=ctx.plan_id,
                   details={"provider": provider.name, "tool_calls": calls})
+            # the plan goes to the owner as the agent's own explanation (in their language)
+            script = ctx.db.get(Plan, ctx.plan_id).voice_script
+            send(db, to_kind="owner", to_id=owner.id, kind="plan_ready", lang=script["lang"], text=script["text"],
+                 plan_id=ctx.plan_id, event_id=event.id)
             db.commit()
             return PlannerResult("planned", plan_id=ctx.plan_id, provider=provider.name, tool_calls=total_calls)
         except ProviderError as e:
@@ -127,5 +134,6 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
 
     audit(db, actor="system", action="agent_failed", entity="anomaly_event", entity_id=event.id,
           details={"reason": last_reason[:500]})
+    notify_owner(db, owner, "could_not_plan", event_id=event.id, once=True, machine=machine.name)
     db.commit()
     return PlannerResult("failed", reason=last_reason)

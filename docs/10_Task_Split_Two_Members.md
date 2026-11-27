@@ -87,12 +87,12 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-12** System prompt + voice-script instructions (doc 06 §7)
 
 ### Week 3–4 · Rules & approval engine
-- [ ] **M2-13** Plan validation: spending limit, quote/slot IDs exist and are fresh, prices match DB, slot before RUL low bound and inside idle window, allowed action types only, voice-script language/length
-- [ ] **M2-14** Reject-and-retry loop back to the agent (max 2), then "could not plan" message
-- [ ] **M2-15** State machine: draft → pending → approved / rejected / expired → executed / cancelled
-- [ ] **M2-16** Scheduler: 24 h reminder, 48 h expiry; never auto-approve
-- [ ] **M2-17** Executor for approved plans (sandbox): book slot, confirm dealer order (no payment), schedule downtime, notify owner, each step audited
-- [ ] **M2-18** Approval only accepted from the owner's registered device/number
+- [x] **M2-13** Plan validation: spending limit, quote/slot IDs exist and are fresh, prices match DB, slot before RUL low bound and inside idle window, allowed action types only, voice-script language/length
+- [x] **M2-14** Reject-and-retry loop back to the agent (3 rejections per provider, then the next provider), then "could not plan" message
+- [x] **M2-15** State machine: draft → pending → approved / rejected / expired → executed / cancelled
+- [x] **M2-16** Scheduler: 24 h reminder, 48 h expiry; never auto-approve
+- [x] **M2-17** Executor for approved plans (sandbox): book slot, confirm dealer order (no payment), schedule downtime, notify owner, each step audited
+- [x] **M2-18** Approval only accepted from the owner's registered device/number
 
 ### Week 3–5 · Diagnosis + RUL
 - [ ] **M2-19** CWRU + NASA IMS loaders; resample CWRU to 3.2 kHz; split by load/recording (CWRU) and by bearing (IMS)

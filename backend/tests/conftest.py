@@ -14,6 +14,7 @@ os.environ["API_TOKEN"] = "test-token"
 os.environ["GEMINI_API_KEY"] = ""
 os.environ["GROQ_API_KEY"] = ""
 os.environ["AGENT_AUTO_PLAN"] = "false"
+os.environ["APPROVAL_SWEEP_INTERVAL_S"] = "0"
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402
