@@ -9,7 +9,7 @@
 | Unit — backend | Batch idempotency, rules engine, state machine transitions | pytest | 100 % of rule branches covered |
 | Safety tests | Over-limit plan, invented quote, missing approval, expired plan, injected dealer instruction, approval from wrong number | pytest | **0 actions executed** in every case |
 | Integration | Phone → API → worker → agent → approval → executor with sim | docker compose + scripted replay | Full flow < 2 min |
-| Replay test | Feed recorded bench session (normal → fault) through the phone pipeline in "replay mode" | `sim/replay.py` + debug build | Alert raised, correct top-1 fault |
+| Replay test | Feed recorded bench session (normal → fault) through the phone pipeline in "replay mode" | `python -m app.replay <C4 session or sim:fault>` (server side) + debug build | Alert raised, correct top-1 fault |
 | Offline | Data off during fault | Manual on device | SMS within 2 min; rows sync after reconnect, no duplicates |
 | Soak | 24 h bench run | Manual | No crash, no leak, ≤ 1 false alarm |
 | Voice | 40 clips (10 speakers × kn/hi × yes/no) | Gnani STT + intent script | ≥ 95 % correct, unclear → re-ask |

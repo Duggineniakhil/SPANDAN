@@ -11,7 +11,7 @@ Base URL: `/api/v1`. JSON everywhere. Prototype auth: one static device token pe
 | POST | `/machines` | Register machine (owner_id, name, type, motor_rpm, bearing_model, sensor_mac) |
 | POST | `/machines/{id}/baseline/start` | Start baseline period |
 | POST | `/machines/{id}/baseline/complete` | Mark baseline done; upload threshold + model version |
-| POST | `/machines/{id}/windows` | Up to 3 raw radial windows (g) `{kind: baseline\|alert, ts, fs, rpm, windows: [[...]]}`. Send a few after the baseline, and the last 3 **before** an alert's readings and `/events/anomaly`; diagnosis uses them (without them: feature-ratio rules) |
+| POST | `/machines/{id}/windows` | Up to 3 raw radial windows (g) `{kind: baseline\|alert, ts, fs, rpm, windows: [[...]]}`. Send a few after the baseline, and the last 3 **before** an alert's readings and `/events/anomaly`; diagnosis uses them (without them: feature-ratio rules). While the alert stays active, send fresh `alert` windows every 5 readings: if the cause was still `unknown` and nothing is planned yet, the cloud diagnoses again and plans once the fault is clear (`{stored, rediagnosed}`) |
 
 ### Telemetry
 | Method | Path | Purpose |

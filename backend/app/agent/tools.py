@@ -88,7 +88,8 @@ def _in_idle_window(owner: Owner, start: datetime, end: datetime) -> bool:
 
 def _deadline(ctx: AgentContext) -> datetime | None:
     d = ctx.diagnosis
-    if d and d.rul_days_low:
+    # `is not None`: 0 days left means "could fail now", the tightest deadline, not "no deadline"
+    if d and d.rul_days_low is not None:
         return ctx.now + timedelta(days=d.rul_days_low)
     return None
 

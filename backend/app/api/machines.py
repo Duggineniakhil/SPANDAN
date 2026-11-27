@@ -1,14 +1,16 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.analytics.worker import store_windows
 from app.audit import audit
+from app.config import get_settings
 from app.db import get_db
+from app.events import plan_in_background, rediagnose_if_unclear
 from app.models import Machine, Owner
 from app.schemas import BaselineComplete, MachineCreate, MachineOut, RawWindowsIn, RawWindowsOut
 
@@ -86,12 +88,18 @@ def complete_baseline(machine_id: uuid.UUID, body: BaselineComplete, db: Session
 
 
 @router.post("/{machine_id}/windows", response_model=RawWindowsOut, status_code=status.HTTP_201_CREATED)
-def upload_windows(machine_id: uuid.UUID, body: RawWindowsIn, db: Session = Depends(get_db)) -> RawWindowsOut:
+def upload_windows(machine_id: uuid.UUID, body: RawWindowsIn, background: BackgroundTasks,
+                   db: Session = Depends(get_db)) -> RawWindowsOut:
     """Up to 3 raw radial-axis windows (g): a few from the baseline, and the last ones before an alert
-    (send these before the alert's readings and `POST /events/anomaly`). Used for diagnosis."""
+    (send these before the alert's readings and `POST /events/anomaly`). Used for diagnosis.
+    While an alert stays active, send fresh alert windows every few readings: if the cause was still
+    unclear, the cloud diagnoses again, and plans the repair once the fault is clear."""
     machine = _get_machine(db, machine_id)
     n = store_windows(db, machine, body.kind, body.ts, body.fs, body.rpm, body.windows)
     audit(db, actor="device", action="raw_windows_uploaded", entity="machine", entity_id=machine.id,
           details={"kind": body.kind, "count": n, "fs": body.fs, "samples": len(body.windows[0])})
+    event = rediagnose_if_unclear(db, machine) if body.kind == "alert" else None
     db.commit()
-    return RawWindowsOut(stored=n)
+    if event is not None and get_settings().agent_auto_plan:
+        background.add_task(plan_in_background, event.id)
+    return RawWindowsOut(stored=n, rediagnosed=event is not None)

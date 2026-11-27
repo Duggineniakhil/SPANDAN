@@ -184,3 +184,36 @@ def test_rul_evaluation_leave_one_bearing_out():
     assert all(u["onset_days"] is not None for u in rep["units"].values())
     assert all(h["onset_days_before_test_end"] is None for h in rep["healthy_bearings"].values())
     assert rep["life_checkpoints"]["life_50"]["no_degradation"] == 4  # before day 3 nothing is predicted
+
+
+# ---------- C4 replay sessions (M2-34) ----------
+
+def test_cwru_to_c4_session(cwru_root, tmp_path):
+    from app.replay.sources import c4_windows, read_meta
+
+    from spandan_ml.c4 import cwru_session
+    path = cwru_session(cwru_root, tmp_path, load=1, fault="bearing_outer", size="007")
+    meta = read_meta(path)
+    assert meta["fs"] == 3200 and meta["bearing_model"] == "6205-2RS" and meta["unit"] == "cwru-load1"
+    labels = [w["label"] for w in meta["windows"]]
+    assert labels[0] == "normal" and labels[-1] == "bearing_outer"
+    assert labels == sorted(labels, key=lambda lb: lb != "normal")  # all normal first, then the fault
+    assert meta["recordings"][0] == "98.mat"  # the same load's normal recording comes first
+    w = next(c4_windows(path))
+    assert len(w.y) == 2 * 3200 and np.std(w.x) > 0 and not np.any(w.z)  # DE → y, FE → x
+    with pytest.raises(SystemExit):
+        cwru_session(cwru_root, tmp_path, fault="bearing_outer", size="021")
+
+
+def test_ims_to_c4_session(ims_root, tmp_path):
+    from app.replay.sources import c4_windows, read_meta
+
+    from spandan_ml.c4 import ims_session
+    path = ims_session(ims_root, tmp_path, test=1, bearing=3)
+    meta = read_meta(path)
+    assert meta["unit"] == "ims-1-b3" and meta["failed"] == "bearing_inner" and meta["interval_s"] == 600
+    assert [w["severity"] for w in meta["windows"]] == [0.0, 0.5, 1.0]  # fraction of life
+    w = list(c4_windows(path))
+    assert len(w) == 3 and len(w[0].y) == 800 and np.std(w[0].x) > 0  # set 1 has x and y channels
+    healthy = read_meta(ims_session(ims_root, tmp_path, test=2, bearing=2))
+    assert {w["label"] for w in healthy["windows"]} == {"normal"}

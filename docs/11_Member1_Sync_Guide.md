@@ -51,6 +51,18 @@ Put the token in `local.properties` → `BuildConfig`, never in git.
 `POST /api/v1/machines/{id}/windows` `{kind: "baseline"|"alert", ts, fs, rpm, windows: [[g, …], …]}`, up to 3 windows of the radial axis.
 Send 3 right after the baseline, and the **last 3 windows before an alert, before** syncing that alert's readings.
 Without them the cloud falls back to rougher feature-ratio rules. See `gateway.ts` (`recent`, `uploadWindows`).
+**New:** while the alert stays active, send the last 3 windows again every 5 readings (`kind: "alert"`). An early
+alert often comes before the fault has a clear signature: the cloud first says `unknown`, then re-diagnoses from the
+fresh windows and plans the repair (response `rediagnosed: true`). Found with the replay tool: alerts fire at
+~10 % fault severity; the fault is nameable from ~20 %.
+
+### Replay input (M1-01, M1-04) and the C4 window format
+Contract C4 is now concrete (`backend/app/replay/sources.py`): one folder per session, `meta.json` + `w0000.npy` …,
+each **int16 [N × 3] (x, y, z) counts, g = counts × `scale_g`** (0.0039 = ADXL345 full resolution, so the sensor
+writes the same files), `fs` 3200, `rpm`, and a `label`/`severity` per window. `ml/spandan_ml/c4.py` converts CWRU and
+NASA IMS to it, so **M1-01 is done on the Member 2 side**; the phone's replay `WindowSource` can read these files.
+`backend/app/replay/phone.py` is a Python port of `features.ts` + `detector.ts` (checked identical to 1e-12):
+the server-side replay sends the cloud exactly what a phone would.
 
 ### Alert (M1-20)
 On the 3rd reading in a row over the threshold: `POST /api/v1/events/anomaly` `{machine_id, started_at, peak_score}`.
@@ -96,5 +108,5 @@ the local scaler/threshold and learn a new baseline** (send baseline rows, then 
 6. Then **M1-19** SMS, **M1-21** home screen polish, **M1-28** strings, then the anomaly model (M1-10 – M1-14), which can be trained on Kaggle like `ml/notebooks/`.
 
 **Load balance:** doc 10 said to move RUL or the dashboard from M2 to M1. That is no longer needed: both are
-done or nearly done on the M2 side. If Member 1 is short of time, Member 2 can instead take **M1-01/M1-02**
-(dataset converters, replay sequences) or the **anomaly-model training** (M1-10 – M1-14) on Kaggle.
+done or nearly done on the M2 side. Member 2 has now done **M1-01/M1-02** (C4 converters and replay sequences, above). If Member 1 is short of
+time, Member 2 can also take the **anomaly-model training** (M1-10 – M1-14) on Kaggle.

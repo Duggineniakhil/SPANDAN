@@ -58,7 +58,8 @@ flowchart LR
 | Android app | ⏳ | Member 1 ([sync guide](docs/11_Member1_Sync_Guide.md)) |
 | Voice (Gnani STT/TTS) | ✅ | Plan as a Kannada/Hindi voice note; spoken reply → approve, reject, or "can it be tomorrow?" → new plan; unclear → asked again, then buttons |
 | Job card, false alarm | ✅ | Mechanic's job card → training label, alert closed, new baseline; owner's false alarm → threshold +5 % (max +30 %) |
-| Replay tool, dashboard | ⏳ | |
+| Replay tool | ✅ | `python -m app.replay`: plays the phone (same features and detector) from CWRU / IMS / simulated runs to failure, end to end |
+| Dashboard | ⏳ | |
 | Sensor hardware (ESP32 + ADXL345) | ⏳ | After the software; the replay input uses the same format |
 
 ## Results so far
@@ -72,7 +73,7 @@ The splits never mix windows from one recording or bearing across train and test
 (only 4 IMS failures; resampling to 3.2 kHz costs accuracy): [doc 05](docs/05_ML_Models_Spec.md), and the
 [confusion matrix](ml/results/confusion_leave_one_load_out.png) and [RUL plot](ml/results/rul_ims.png).
 
-Tests: 212 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
+Tests: 222 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
 
 ## Safety rules the code enforces
 - **The LLM proposes, plain code disposes.** The agent has no tool that buys, books or pays. Prices come from stored quotes, never from the model.
@@ -102,6 +103,8 @@ npm install && npm run dev      # http://localhost:5173
 
 Then open the web app: **Start the demo** → register a machine → wait for the baseline → inject a fault.
 (`POST /api/v1/sim/reset` once, to fill the sandbox dealers and mechanics.)
+
+No phone? Replay a run to failure through the whole flow: `cd backend && .venv/Scripts/python -m app.replay sim:bearing_outer --approve tap --job-card`.
 
 Models are trained in Kaggle notebooks (no local GPU or downloads): see [ml/README.md](ml/README.md).
 

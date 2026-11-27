@@ -10,6 +10,7 @@ import { extractFeatures, type Spectrum } from "./features";
 import { FS, generateWindow, type FaultType } from "./signal";
 
 export const BASELINE_WINDOWS = 30;
+const RESEND_EVERY = 5; // readings between fresh alert windows while an alert stays active
 const SYNC_EVERY = 10;
 const DEVICE_ID = "web-gateway-01";
 const MAX_HISTORY = 120;
@@ -66,6 +67,7 @@ export class Gateway {
   private smoothHealth: number | null = null;
   private logId = 0;
   private syncing = false;
+  private sinceResend = 0;
   private pendingReport: { startedAt: string; peak: number; windows: number[][] } | null = null;
   private recent: Float64Array[] = []; // last raw windows (radial axis): sent with an alert for diagnosis
 
@@ -257,10 +259,18 @@ export class Gateway {
         const why = contributors.map((c) => c.name).join(", ");
         this.log("alert", `Unusual vibration for 3 readings in a row (score ${sc.toFixed(1)}). Biggest changes: ${why}.`);
         if (!s.online) this.log("alert", "No network: SMS alert sent to the owner (simulated).");
+        this.sinceResend = 0;
         this.pendingReport = { startedAt: new Date(t).toISOString(), peak: sc, windows: this.recent.map(toList) };
         void this.reportAlert();
       } else if (change === "cleared") {
         this.log("ok", "Vibration back to normal.");
+      } else if (this.alertRule.active && s.online && ++this.sinceResend >= RESEND_EVERY) {
+        // Alert still active: fresh raw windows, so the cloud can name a fault that was unclear at first.
+        this.sinceResend = 0;
+        void this.sync()
+          .then(() => api.uploadWindows(this.machineId, "alert", FS, this.rpm, this.recent.map(toList)))
+          .then((r) => r.rediagnosed && this.log("info", "Cloud now recognises the fault; planning the repair."))
+          .catch(() => undefined);
       }
     }
 

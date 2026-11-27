@@ -75,6 +75,15 @@ def test_slots_are_free_before_deadline_and_ranked(ctx):
     assert slot.status == "free"
 
 
+def test_zero_days_left_is_the_tightest_deadline_not_none(ctx):
+    """Found by the replay tool: 0.0 days left was treated as 'no deadline' and a slot a day later was booked."""
+    ctx.diagnosis.rul_days_low, ctx.diagnosis.rul_days_high, ctx.diagnosis.rul_status = 0.0, 0.02, "ok"
+    out, err = call(ctx, "find_repair_slots", skill="bearing")
+    assert err and "before the deadline" in out["error"]
+    ctx.diagnosis.rul_days_low = None  # no estimate at all → no deadline from RUL
+    assert not call(ctx, "find_repair_slots", skill="bearing")[1]
+
+
 def test_bad_tool_args_are_errors_not_crashes(ctx):
     assert call(ctx, "search_parts")[1]  # missing arg
     assert call(ctx, "search_parts", part_code="X", hack=1)[1]  # extra arg

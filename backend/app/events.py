@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.analytics.worker import diagnose_event
 from app.audit import audit
 from app.config import get_settings
-from app.models import AnomalyEvent, Machine, Telemetry
+from app.models import AnomalyEvent, Diagnosis, Machine, Plan, Telemetry
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +39,28 @@ def open_event(db: Session, machine: Machine, started_at: datetime, peak_score: 
     audit(db, actor="system", action="event_diagnosed", entity="anomaly_event", entity_id=event.id,
           details={"faults": diagnosis.faults, "rul_status": diagnosis.rul_status})
     return event, True
+
+
+def rediagnose_if_unclear(db: Session, machine: Machine) -> AnomalyEvent | None:
+    """An early alert often comes before the fault has a clear signature (the detector reacts to any
+    change; the rules need the fault's own frequencies). While the open alert is still "unknown" and
+    unplanned, fresh alert windows are diagnosed again. Returns the event if the fault is now clear."""
+    event = db.scalars(select(AnomalyEvent).where(AnomalyEvent.machine_id == machine.id,
+                                                  AnomalyEvent.status == "diagnosed")
+                       .order_by(AnomalyEvent.started_at.desc()).with_for_update(key_share=True)).first()
+    if event is None:
+        return None
+    last = db.scalars(select(Diagnosis).where(Diagnosis.event_id == event.id)
+                      .order_by(Diagnosis.created_at.desc())).first()
+    planned = db.scalar(select(Plan.id).where(Plan.event_id == event.id,
+                                              Plan.state.in_(("draft", "pending", "approved", "executed"))))
+    if planned or (last and last.faults and last.faults[0]["fault"] != "unknown"):
+        return None
+    diagnosis = diagnose_event(db, machine, event)
+    top = diagnosis.faults[0]
+    audit(db, actor="system", action="event_rediagnosed", entity="anomaly_event", entity_id=event.id,
+          details={"faults": diagnosis.faults, "rul_status": diagnosis.rul_status})
+    return event if top["fault"] != "unknown" else None
 
 
 def check_server_rule(db: Session, machine: Machine) -> tuple[AnomalyEvent, bool] | None:

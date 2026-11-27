@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-33 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-34 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -94,6 +94,27 @@ ffmpeg must be on the PATH to accept browser/phone recordings (WebM, OGG, M4A...
 
 Measured live (27 Nov 2026): a ~300-character Kannada script → 25–35 s note in about 5 s; STT about 1 s;
 digits and ₹ amounts are read correctly, so scripts keep digits.
+
+## Replay tool (M2-34)
+
+Plays the phone against the running API from a recording: baseline → monitoring → alert (raw windows first) →
+diagnosis → the agent's plan → approval (tap, or voice via Gnani) → job card with the true label → new baseline.
+
+```bash
+.venv/Scripts/python -m app.replay sim:bearing_outer --approve tap --job-card   # simulated run to failure
+.venv/Scripts/python -m app.replay sim:imbalance --language hi --approve voice --job-card
+.venv/Scripts/python -m app.replay ../ml/c4/cwru-bearing_outer-007-load1 --baseline 20   # a C4 session
+.venv/Scripts/python -m app.replay sim:none --developing 0 --normal 500                  # false alerts?
+```
+
+`app/replay/phone.py` is the phone's feature set and z-score detector in Python (identical to `features.ts` /
+`detector.ts` to 1e-12), `sources.py` the C4 window format and the simulated run to failure, `runner.py` the steps.
+One window = one reading = `READING_INTERVAL_MIN` on a virtual clock ending now, so `--developing 60` fails in an
+hour: days-left is then ~0 and the agent (correctly) can't book anything in time.
+
+Measured on simulated runs: no false alert in 1,200 healthy readings (0.2 % of single readings cross the threshold;
+the 3-in-a-row rule absorbs them). Alerts fire at ~3–12 % fault severity, before the fault has a clear signature, so
+the cloud first says `unknown`; with fresh windows every 5 readings it names the fault from ~20 % severity.
 
 ## Repair feedback
 

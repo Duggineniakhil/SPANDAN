@@ -343,6 +343,7 @@ class RawWindowsIn(StrictModel):
 
 class RawWindowsOut(BaseModel):
     stored: int
+    rediagnosed: bool = False  # an unclear alert now has a clear fault (and gets planned)
 
 
 class SpokenOut(BaseModel):
