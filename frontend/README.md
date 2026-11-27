@@ -22,7 +22,7 @@ The dev server proxies `/api` to the backend and adds the bearer token, so the t
 |------|-------------|
 | `/` | Landing page: background video, animated headline, illustrated how-it-works, example story, safety rules |
 | `/setup` | Registers owner + machine in the backend, then starts baseline learning |
-| `/monitor` | Live monitor: health ring, anomaly score vs threshold, waveform, spectrum, envelope spectrum (BPFO), fault injection, offline mode, upload status, event log |
+| `/monitor` | Live monitor: health ring, anomaly score vs threshold, waveform, spectrum, envelope spectrum (BPFO), fault injection, offline mode, upload status, event log, and the cloud panel: diagnosis + days left, the agent's repair plan with Approve/Reject, owner's messages |
 
 ## How detection works (`src/lib/`)
 
