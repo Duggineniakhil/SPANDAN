@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-03, M2-05, M2-07 – M2-18 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -38,6 +38,10 @@ Tests use the `spandan_test` database and wipe it between tests.
 | POST | `/api/v1/machines/{id}/baseline/start` | from setup / monitoring / maintenance |
 | POST | `/api/v1/machines/{id}/baseline/complete` | `{anomaly_threshold, model_version}` → monitoring |
 | POST | `/api/v1/telemetry/batch` | Idempotent by `row_id`; returns `{accepted, duplicates, rejected}` |
+| GET | `/api/v1/machines/{id}/telemetry?from&to&features&max_points` | Chart series; long ranges bucketed (max score, min health) |
+| GET | `/api/v1/machines/{id}/health` | Latest reading, state, open event, pending plan |
+| GET | `/api/v1/machines/{id}/diagnosis/latest` | Latest top faults + RUL |
+| GET | `/api/v1/audit?machine_id&from&to&actor&limit` | Audit trail, newest first |
 | POST | `/api/v1/events/anomaly` | Phone reports an anomaly → diagnosed → agent plans it in the background |
 | GET | `/api/v1/events?machine_id=` / `/api/v1/events/{id}` | Events with diagnosis and plans |
 | POST | `/api/v1/events/{id}/plan` | Run the agent now |

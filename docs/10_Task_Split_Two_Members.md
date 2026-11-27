@@ -74,7 +74,7 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-01** FastAPI app + PostgreSQL (docker compose), SQLAlchemy models, Alembic migrations for all tables (doc 07 §2)
 - [x] **M2-02** Endpoints: owners, machines, baseline start/complete
 - [x] **M2-03** `/telemetry/batch` with validation, dedupe by `row_id`, `{accepted, duplicates, rejected}` response
-- [ ] **M2-04** Telemetry/health read endpoints for dashboard
+- [x] **M2-04** Telemetry/health read endpoints for dashboard (+ latest diagnosis, audit trail)
 - [x] **M2-05** Append-only `audit_log` helper used by every write path
 - [x] **M2-06** ~~Fake-telemetry script~~ replaced by the web app (simulated sensor + gateway) (posts feature rows, normal → anomalous) for testing without M1
 - [x] **M2-07** Server-side anomaly rule as backup + `anomaly_events` creation

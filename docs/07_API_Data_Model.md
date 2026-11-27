@@ -16,8 +16,8 @@ Base URL: `/api/v1`. JSON everywhere. Prototype auth: one static device token pe
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/telemetry/batch` | Upload feature rows (idempotent) |
-| GET | `/machines/{id}/telemetry?from&to` | Time series for dashboard |
-| GET | `/machines/{id}/health` | Latest health index, anomaly score, state |
+| GET | `/machines/{id}/telemetry?from&to&features=rms_y,kurtosis_y&max_points=500` | Time series for charts (default last 24 h, max 60 days). Above `max_points` rows it is bucketed: max score, min health, mean rpm/features per bucket |
+| GET | `/machines/{id}/health` | Latest reading (health, score), minutes since it, readings in 24 h, state, open event, pending plan id |
 
 `POST /telemetry/batch` request:
 ```json
@@ -48,7 +48,7 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 | GET | `/events/{id}` | Event with its diagnosis and plans |
 | POST | `/events/{id}/plan` | Run the coordinator agent now (synchronous) |
 | POST | `/sim/reset` | Recreate sandbox dealers, parts, mechanics and calendars |
-| GET | `/machines/{id}/diagnosis/latest` | Top-3 faults + RUL |
+| GET | `/machines/{id}/diagnosis/latest` | Top-3 faults + RUL of the latest diagnosis (404 if none) |
 | GET | `/plans/{id}` | Plan detail |
 | GET | `/owners/{id}/plans?state=pending` | Pending plans for app |
 | POST | `/plans/{id}/decision` | `{ "decision": "approve" \| "reject", "channel": "tap" \| "voice" \| "sms", "from_phone": "+91…", "transcript": "..." }` → `{plan, executed, reason, job_id, replanning}`. 403 wrong number, 409 not pending / expired |
@@ -67,7 +67,7 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 ### Audit & admin
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/audit?machine_id&from&to` | Audit log |
+| GET | `/audit?machine_id&from&to&actor&limit` | Audit log, newest first. `machine_id` covers its events, plans, jobs, quotes and plan-related slot changes |
 | POST | `/sim/reset` | Reset sandbox dealers/mechanics (demo only) |
 
 ## 2. Database schema (PostgreSQL)

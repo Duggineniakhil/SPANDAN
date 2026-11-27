@@ -220,3 +220,57 @@ class MessageOut(BaseModel):
 class SweepOut(BaseModel):
     reminded: int
     expired: int
+
+
+# ---------- Dashboard reads ----------
+
+class TelemetryPoint(BaseModel):
+    ts: datetime
+    anomaly_score: float | None
+    health_index: float | None
+    rpm_estimate: float | None
+    features: dict[str, float | None] = {}
+
+
+class TelemetrySeries(BaseModel):
+    machine_id: uuid.UUID
+    from_ts: datetime
+    to_ts: datetime
+    total_rows: int
+    downsampled: bool  # True: each point is a time bucket (max score, min health, mean rpm/features)
+    bucket_seconds: float | None = None
+    points: list[TelemetryPoint]
+
+
+class LastReading(BaseModel):
+    ts: datetime
+    anomaly_score: float | None
+    health_index: float | None
+    received_at: datetime
+
+
+class HealthOut(BaseModel):
+    machine_id: uuid.UUID
+    state: str
+    anomaly_threshold: float | None
+    last_reading: LastReading | None
+    minutes_since_last_reading: float | None
+    readings_24h: int
+    open_event: AnomalyEventOut | None
+    pending_plan_id: uuid.UUID | None
+
+
+class LatestDiagnosisOut(DiagnosisOut):
+    event_id: uuid.UUID
+
+
+class AuditOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ts: datetime
+    actor: str
+    action: str
+    entity: str
+    entity_id: uuid.UUID | None
+    details: dict
