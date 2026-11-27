@@ -1,5 +1,5 @@
 numpy>=2.1
 scipy>=1.14
-scikit-learn>=1.6
+scikit-learn==1.9.1  # must match the version that trained ml/results models (notebooks install this)
 joblib>=1.4
 matplotlib>=3.9

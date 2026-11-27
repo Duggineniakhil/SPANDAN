@@ -149,3 +149,13 @@ def test_ims_pipeline_writes_indicators(ims_root, tmp_path):
     b1 = [r for r in rows if r["bearing"] == "1"]
     assert b1[0]["failed_with"] == "bearing_outer" and b1[0]["unit_id"] == "ims-2-b1"
     assert float(b1[2]["kurtosis_raw"]) > float(b1[0]["kurtosis_raw"])  # the faulty snapshot is impulsive
+
+
+def test_training_refuses_a_different_sklearn(monkeypatch, tmp_path):
+    import sklearn
+
+    from spandan_ml import pinned_sklearn
+    assert pinned_sklearn() == sklearn.__version__  # local env matches the pin
+    monkeypatch.setattr(sklearn, "__version__", "0.0.1")
+    with pytest.raises(RuntimeError, match="pinned"):
+        run_cwru(str(tmp_path), str(tmp_path))

@@ -13,7 +13,7 @@ import numpy as np
 import sklearn
 from joblib import Parallel, delayed
 
-from spandan_ml import TARGET_FS, cwru, ims
+from spandan_ml import TARGET_FS, check_sklearn, cwru, ims
 from spandan_ml.diagnosis import build_dataset, evaluate, plot_confusion, save, train_final
 from spandan_ml.features import window_features, windows
 
@@ -29,6 +29,7 @@ def _cwru_rows(rec: cwru.Recording, window_s: float, hop_s: float, max_windows: 
 def run_cwru(root: str, out_dir: str, *, window_s: float = 2.0, hop_s: float = 1.0, max_windows: int = 40,
              include_48k: bool = False, n_jobs: int = -1) -> dict:
     """Discover → manifest → features → leave-one-load-out evaluation → final model + report."""
+    check_sklearn()  # before the long run, not after
     t0 = time.time()
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
