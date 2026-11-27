@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.events import OPEN_STATUSES, open_event, plan_in_background
+from app.feedback import event_jobs
 from app.models import AnomalyEvent, Diagnosis, Machine, Plan
-from app.schemas import AnomalyEventDetail, AnomalyEventIn, AnomalyEventOut, DiagnosisOut, PlannerResultOut, PlanOut
+from app.schemas import (AnomalyEventDetail, AnomalyEventIn, AnomalyEventOut, DiagnosisOut, JobOut, PlannerResultOut,
+                         PlanOut)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -49,6 +51,7 @@ def get_event(event_id: uuid.UUID, db: Session = Depends(get_db)) -> AnomalyEven
     detail = AnomalyEventDetail.model_validate(event)
     detail.diagnosis = DiagnosisOut.model_validate(diagnosis) if diagnosis else None
     detail.plans = [PlanOut.model_validate(p) for p in plans]
+    detail.jobs = [JobOut(**j) for j in event_jobs(db, event_id)]
     return detail
 
 

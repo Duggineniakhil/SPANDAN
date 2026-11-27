@@ -4,10 +4,11 @@
  * Polls the backend; decisions are sent with the owner's registered number (the server checks it).
  */
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, CalendarClock, Check, MessageSquare, Package, RefreshCw, ShieldCheck, Stethoscope, Wrench, X } from "lucide-react";
+import { BellOff, Bot, CalendarClock, Check, ClipboardCheck, MessageSquare, Package, RefreshCw, ShieldCheck, Stethoscope, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import JobCardForm, { ACTUAL_FAULTS } from "./JobCardForm";
 import VoicePanel from "./VoicePanel";
-import { api, type EventDetail, type Health, type Message, type Owner, type Plan, type PlanAction } from "../lib/api";
+import { api, type EventDetail, type Health, type Job, type Message, type Owner, type Plan, type PlanAction } from "../lib/api";
 
 const POLL_MS = 3000;
 
@@ -24,6 +25,7 @@ const FAULT_NAMES: Record<string, string> = {
 const MESSAGE_LABEL: Record<string, string> = {
   plan_ready: "Repair plan", reminder: "Reminder", booking_confirmed: "Booked", rejected: "Plan cancelled",
   expired: "Plan expired", slot_lost: "Slot lost", could_not_plan: "Couldn't plan", inspection: "Inspection",
+  job_done: "Repair done", false_alarm: "False alarm",
 };
 
 const when = (iso: string) =>
@@ -72,9 +74,13 @@ function useCloud(machineId: string, ownerId: string) {
   return { health, event, messages, error, refresh };
 }
 
-export default function RepairPanel({ machineId, owner }: { machineId: string; owner: Owner }) {
+const OPEN = ["open", "diagnosed", "planned"];
+
+export default function RepairPanel({ machineId, owner, onRepaired, onFalseAlarm }: {
+  machineId: string; owner: Owner; onRepaired: () => void; onFalseAlarm: (threshold: number, raisePct: number) => void;
+}) {
   const { event, messages, error, refresh } = useCloud(machineId, owner.id);
-  const [busy, setBusy] = useState<"approve" | "reject" | "plan" | null>(null);
+  const [busy, setBusy] = useState<"approve" | "reject" | "plan" | "false_alarm" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const plan: Plan | undefined = event?.plans[0];
@@ -88,6 +94,27 @@ export default function RepairPanel({ machineId, owner }: { machineId: string; o
     try {
       const r = await api.decide(plan.id, decision, owner.phone);
       setNotice(r.executed === false ? `Not booked: ${r.reason}.${r.replanning ? " A new plan is being prepared." : ""}` : null);
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setBusy(null);
+      void refresh();
+    }
+  }
+
+  const job = event?.jobs[0];
+  const isOpen = event != null && OPEN.includes(event.status);
+  // Nobody booked yet: the owner can still say the alert was wrong (M1-26).
+  const canFalseAlarm = isOpen && !event?.plans.some((p) => p.state === "approved" || p.state === "executed");
+
+  async function falseAlarm() {
+    if (!event) return;
+    setBusy("false_alarm");
+    setNotice(null);
+    try {
+      const r = await api.falseAlarm(event.id, owner.phone);
+      if (r.anomaly_threshold != null) onFalseAlarm(r.anomaly_threshold, r.threshold_raise_pct);
+      setNotice(`Marked as a false alarm. This machine's alert threshold is now ${r.threshold_raise_pct}% higher.`);
     } catch (e) {
       setNotice((e as Error).message);
     } finally {
@@ -144,6 +171,21 @@ export default function RepairPanel({ machineId, owner }: { machineId: string; o
                 </motion.div>
               )}
             </AnimatePresence>
+            {job?.status === "scheduled" && (
+              <JobCardForm job={job} predicted={event.diagnosis?.faults[0]?.fault} phone={owner.phone}
+                defaultPart={plan?.plan.actions.find((a) => a.type === "buy_part")?.part_code}
+                onDone={() => { onRepaired(); void refresh(); }} />
+            )}
+            {job?.job_card && <JobDone job={job} />}
+            {event.status === "false_alarm" && (
+              <p className="small muted"><BellOff size={14} /> Marked as a false alarm by the owner. Nothing was booked.</p>
+            )}
+            {canFalseAlarm && (
+              <button className="btn btn-ghost" disabled={busy !== null} onClick={falseAlarm}
+                title="The machine is fine: close this alert and make this machine's alerts a little less sensitive">
+                <BellOff size={15} /> False alarm
+              </button>
+            )}
             {event.status === "diagnosed" && (!plan || ["rejected", "expired", "cancelled"].includes(plan.state)) && (
               <button className="btn btn-ghost" disabled={busy !== null} onClick={replan}>
                 <RefreshCw size={15} className={busy === "plan" ? "spin" : ""} /> {plan ? "Ask for a new plan" : "Plan now"}
@@ -176,7 +218,9 @@ function Diagnosis({ event }: { event: EventDetail }) {
           </li>
         ))}
       </ul>
-      {d.rul_status === "ok" && d.rul_days_low != null && d.rul_days_high != null ? (
+      {event.status === "resolved" || event.status === "false_alarm" ? (
+        <p className="muted small">Alert closed{event.status === "resolved" ? ": repaired" : ": false alarm"}. No days-left estimate needed.</p>
+      ) : d.rul_status === "ok" && d.rul_days_low != null && d.rul_days_high != null ? (
         <div className="rul">
           <CalendarClock size={16} />
           <span><b>{span(d.rul_days_low, d.rul_days_high)}</b> before it is likely to fail</span>
@@ -246,6 +290,24 @@ function PlanCard({ plan, owner, busy, onDecide, onVoice, failBy }: {
         <p className="small">Mechanic booked, dealer order confirmed, downtime scheduled. The system never pays: the owner pays at pickup.</p>
       ) : null}
     </motion.div>
+  );
+}
+
+function JobDone({ job }: { job: Job }) {
+  const jc = job.job_card!;
+  const name = (f: string | null) => ACTUAL_FAULTS.find((x) => x.id === f)?.label ?? FAULT_NAMES[f ?? ""] ?? f;
+  return (
+    <div className="job-done">
+      <span className="kicker"><ClipboardCheck size={13} /> Repair recorded</span>
+      <p><b>{name(jc.actual_fault)}</b>{jc.parts_replaced.length > 0 && <> · replaced {jc.parts_replaced.join(", ")}</>}</p>
+      {jc.diagnosis_correct != null && (
+        <p className={`small ${jc.diagnosis_correct ? "ok-text" : "warn-text"}`}>
+          {jc.diagnosis_correct ? "The cloud diagnosis was right." : `The cloud said ${name(jc.predicted_fault)}; kept as a training label.`}
+        </p>
+      )}
+      {jc.notes && <p className="muted small">{jc.notes}</p>}
+      <p className="muted small">The sensor is learning the repaired machine's normal vibration.</p>
+    </div>
   );
 }
 

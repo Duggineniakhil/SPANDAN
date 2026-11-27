@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-31 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-33 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -53,6 +53,8 @@ Tests use the `spandan_test` database and wipe it between tests.
 | GET | `/api/v1/plans/{id}/voice-note` | The plan as an OGG/Opus voice note (Gnani TTS); 503 = no voice, show the text |
 | POST | `/api/v1/plans/{id}/voice-reply` | Multipart `audio` + `from_phone` → STT → intent → approve / reject / re-plan / ask again |
 | GET | `/api/v1/voice/phrases/{lang}/{name}` | Cached fixed phrases (`reask`, `use_buttons`, `approved`, `rejected`, `replanning`) |
+| POST | `/api/v1/jobs/{id}/job-card` | Mechanic's job card: label, alert resolved, new baseline |
+| POST | `/api/v1/alerts/{id}/false-alarm` | Owner: label, pending plan withdrawn, threshold +5 % (max +30 %) |
 | POST | `/api/v1/sim/reset` | Recreate sandbox dealers, parts, mechanics, calendars |
 | GET | `/api/v1/sim/messages?to_kind=` | What the sandbox dealers / mechanics were sent |
 
@@ -93,8 +95,16 @@ ffmpeg must be on the PATH to accept browser/phone recordings (WebM, OGG, M4A...
 Measured live (27 Nov 2026): a ~300-character Kannada script → 25–35 s note in about 5 s; STT about 1 s;
 digits and ₹ amounts are read correctly, so scripts keep digits.
 
+## Repair feedback
+
+`app/feedback.py`. A job card stores what was really wrong as a `feedback_labels` row (with `diagnosis_correct`),
+resolves the alert and starts a new baseline: from then on diagnosis and RUL only use readings received since the
+current baseline. A false alarm stores a label, withdraws a pending plan and raises the machine's threshold from
+`threshold_base`. If the owner marks a false alarm while the agent is still planning, `submit_plan` re-reads the
+event under a row lock and the planner stops (`agent_stopped`) instead of reopening it.
+
 ## Notes
-- 15 tables: the 13 from doc 07 plus `quotes` and `messages` (migrations `0837ce1719ef`, `a6436a90e3ba`, `de4177445205`). Location is lat/lng floats, not PostGIS.
+- 16 tables: the 13 from doc 07 plus `quotes`, `messages` and `raw_windows`. Location is lat/lng floats, not PostGIS.
 - `audit_log` is append-only: a database trigger blocks UPDATE and DELETE.
 - Telemetry rows more than 10 min in the future or older than 60 days are rejected per row; a malformed batch (naive timestamps, NaN, health > 100, empty features) is rejected whole with 422.
 - New migration after changing `app/models`: `.venv/Scripts/alembic revision --autogenerate -m "..."`.

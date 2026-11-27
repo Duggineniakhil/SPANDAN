@@ -106,15 +106,36 @@ export class Gateway {
     this.set({ log: [entry, ...this.state.log].slice(0, 40) });
   }
 
-  async startBaseline() {
+  /** The mechanic's job card is in: the motor is repaired and the server has already started a new
+   *  baseline (M1-27), so clear the simulated fault and learn normal vibration again. */
+  async afterRepair() {
+    this.set({ fault: "none", severity: 0 });
+    this.log("ok", "Job card received: repaired. Learning the machine's new normal vibration.");
+    await this.startBaseline(false);
+  }
+
+  /** Owner marked a false alarm: use the server's raised threshold (+5 % each, max +30 %), as M1-26 does. */
+  applyThreshold(threshold: number, raisePct: number) {
+    const b = this.state.baseline;
+    if (!b) return;
+    const baseline = { ...b, threshold };
+    saveBaseline(this.machineId, baseline);
+    this.alertRule = new AlertRule(3);
+    this.set({ baseline, alertActive: false });
+    this.log("info", `False alarm noted. Alert threshold raised ${raisePct}% to ${threshold.toFixed(2)}.`);
+  }
+
+  async startBaseline(tellServer = true) {
     this.baselineSamples = [];
     this.alertRule = new AlertRule(3);
     this.smoothHealth = null;
     this.set({ phase: "baseline", baseline: null, baselineProgress: 0, fault: "none", severity: 0, history: [] });
-    try {
-      await api.startBaseline(this.machineId);
-    } catch (e) {
-      this.log("error", `Baseline start not recorded on server: ${(e as Error).message}`);
+    if (tellServer) {
+      try {
+        await api.startBaseline(this.machineId);
+      } catch (e) {
+        this.log("error", `Baseline start not recorded on server: ${(e as Error).message}`);
+      }
     }
     this.log("info", `Learning this machine's normal vibration (${BASELINE_WINDOWS} readings)…`);
     this.start();

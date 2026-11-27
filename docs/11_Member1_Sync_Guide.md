@@ -13,7 +13,7 @@ must send and read to plug into it, and a sensible order to build in.
 | Approval engine (M2-13 – M2-18) | ✅ owner approve/reject (only from the registered number), executor, 24 h reminder, 48 h expiry, owner messages |
 | Diagnosis + RUL (M2-19 – M2-26) | ✅ trained, evaluated and live: every alert is diagnosed from raw windows and gets days-left |
 | Voice (Gnani) (M2-27 – M2-31) | ✅ voice note out, spoken reply in, re-plan on a request |
-| Job card, false alarm (M2-32, M2-33) | ⏳ not built yet |
+| Job card, false alarm (M2-32, M2-33) | ✅ |
 | **Android app (all M1 tasks)** | ❌ **nothing in the repo yet** (no `android/` folder, no commits from Member 1) |
 
 **The web app (`frontend/`) already does the phone's job in a browser**, so it is a working reference for
@@ -74,9 +74,18 @@ Sync the queued rows first. Offline: send the SMS (M1-19), keep the report, send
   `use_buttons` or any 503 → keep the Approve/Reject buttons (always keep them visible anyway).
 - The phone never holds the Gnani key. Reference: `frontend/src/components/VoicePanel.tsx`.
 
-### Coming next from Member 2 (build the screens, wire when ready)
-`POST /jobs/{id}/job-card` (M1-27),
-`POST /alerts/{id}/false-alarm` (M1-26).
+### False alarm (M1-26), live now
+While an alert is open and nobody is booked: `POST /api/v1/alerts/{event_id}/false-alarm` `{from_phone, note}`.
+Use the returned `anomaly_threshold` as the phone's new threshold (the server applies the same +5 % / max +30 % rule,
+counted since the last baseline), so the phone and the cloud agree. 409 once a mechanic is booked: then the job
+card records what they found (`no_fault_found`).
+
+### Job card (M1-27), live now
+The booked job is in `GET /api/v1/events/{id}` → `jobs[0]` (`status: "scheduled"`). After the repair:
+`POST /api/v1/jobs/{job_id}/job-card` `{actual_fault, parts_replaced, notes, from_phone}`. The form runs on the owner's
+phone, so the owner's number is accepted, as is the mechanic's. The response has `machine_state: "baseline"`: **reset
+the local scaler/threshold and learn a new baseline** (send baseline rows, then `baseline/complete`; do not call
+`baseline/start`, the server already did). Reference: `JobCardForm.tsx`, `gateway.ts` (`afterRepair`, `applyThreshold`).
 
 ## 3. Suggested order for Member 1
 1. **M1-03** Android skeleton, then push it (`android/` folder, a branch + pull request is fine).

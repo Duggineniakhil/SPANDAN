@@ -76,7 +76,7 @@ def complete_baseline(machine_id: uuid.UUID, body: BaselineComplete, db: Session
     if machine.state != "baseline":
         raise HTTPException(status.HTTP_409_CONFLICT, "Machine is not in baseline")
     machine.state = "monitoring"
-    machine.anomaly_threshold = body.anomaly_threshold
+    machine.anomaly_threshold = machine.threshold_base = body.anomaly_threshold
     machine.model_version = body.model_version
     machine.baseline_done_at = datetime.now(UTC)
     audit(db, actor="device", action="baseline_completed", entity="machine", entity_id=machine.id,

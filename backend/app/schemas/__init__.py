@@ -74,6 +74,7 @@ class MachineOut(BaseModel):
     sensor_id: str | None
     state: str
     anomaly_threshold: float | None
+    threshold_base: float | None = None  # from the last baseline; false alarms raise anomaly_threshold above it
     model_version: str | None
     baseline_started_at: datetime | None
     baseline_done_at: datetime | None
@@ -171,9 +172,55 @@ class AnomalyEventOut(BaseModel):
     created_at: datetime
 
 
+# ---------- Feedback (M2-32, M2-33) ----------
+
+ActualFault = Literal["bearing_outer", "bearing_inner", "bearing_ball", "imbalance", "misalignment", "looseness",
+                      "no_fault_found", "other"]
+
+
+class JobOut(BaseModel):
+    id: uuid.UUID
+    plan_id: uuid.UUID
+    status: str
+    mechanic: str
+    start: datetime
+    end: datetime
+    job_card: dict | None = None
+
+
 class AnomalyEventDetail(AnomalyEventOut):
     diagnosis: DiagnosisOut | None = None
     plans: list[PlanOut] = []
+    jobs: list[JobOut] = []
+
+
+class JobCardIn(StrictModel):
+    actual_fault: ActualFault = Field(description="What the mechanic actually found")
+    parts_replaced: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(default=[], max_length=10)
+    notes: str = Field(default="", max_length=1000)
+    from_phone: str = Field(min_length=10, max_length=20,
+                            description="The booked mechanic's or the owner's number (the form runs on the owner's phone)")
+
+
+class JobCardOut(BaseModel):
+    job: JobOut
+    event_status: str
+    machine_state: str  # "baseline": the phone must learn a new baseline now
+    diagnosis_correct: bool | None
+
+
+class FalseAlarmIn(StrictModel):
+    from_phone: str = Field(min_length=10, max_length=20, description="Owner's registered number")
+    note: str = Field(default="", max_length=300)
+
+
+class FalseAlarmOut(BaseModel):
+    event: AnomalyEventOut
+    machine_state: str
+    anomaly_threshold: float | None
+    threshold_base: float | None
+    threshold_raise_pct: float  # vs the baseline's threshold; the phone applies the same value
+    cancelled_plan_id: uuid.UUID | None = None
 
 
 class PlannerResultOut(BaseModel):

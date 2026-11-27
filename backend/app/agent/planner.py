@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.llm import Provider, ProviderError, ToolDef, ToolResult, default_providers
 from app.agent.prompts import SYSTEM_PROMPT, user_message
-from app.agent.tools import TOOLS, AgentContext, execute
+from app.agent.tools import TOOLS, AgentContext, EventClosed, execute
 from app.approval.messages import notify_owner, send
 from app.audit import audit
 from app.config import get_settings
@@ -117,6 +117,12 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
                  plan_id=ctx.plan_id, event_id=event.id)
             db.commit()
             return PlannerResult("planned", plan_id=ctx.plan_id, provider=provider.name, tool_calls=total_calls)
+        except EventClosed as e:
+            # e.g. the owner marked a false alarm meanwhile: nothing to plan, nobody to notify
+            audit(db, actor="system", action="agent_stopped", entity="anomaly_event", entity_id=event.id,
+                  details={"provider": provider.name, "reason": str(e)})
+            db.commit()
+            return PlannerResult("skipped", reason=str(e), tool_calls=total_calls)
         except ProviderError as e:
             # Keep quotes and audit entries; try the next provider from scratch.
             last_reason = str(e)

@@ -59,14 +59,30 @@ def rank_faults(baseline: list[dict], recent: list[dict]) -> list[dict]:
     ]
 
 
+def current_rows(machine: Machine, scored: bool) -> list:
+    """Filters for this machine's readings since its current baseline: baseline readings (no anomaly
+    score) received since the baseline started, scored readings since it was completed. After a repair
+    the machine learns a new baseline, so older readings must not mix in (M2-32)."""
+    where = [Telemetry.machine_id == machine.id]
+    if scored:
+        where.append(Telemetry.anomaly_score.is_not(None))
+        if machine.baseline_done_at is not None:
+            where.append(Telemetry.received_at >= machine.baseline_done_at)
+    else:
+        where.append(Telemetry.anomaly_score.is_(None))
+        if machine.baseline_started_at is not None:
+            where.append(Telemetry.received_at >= machine.baseline_started_at)
+    return where
+
+
 def feature_rows(db: Session, machine: Machine) -> tuple[list[dict], list[dict]]:
     """(baseline feature rows, latest monitoring feature rows). Baseline readings carry no anomaly score."""
     baseline_rows = db.scalars(
-        select(Telemetry.features).where(Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_(None))
+        select(Telemetry.features).where(*current_rows(machine, scored=False))
         .order_by(Telemetry.ts.desc()).limit(200)
     ).all()
     recent_rows = db.scalars(
-        select(Telemetry.features).where(Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_not(None))
+        select(Telemetry.features).where(*current_rows(machine, scored=True))
         .order_by(Telemetry.ts.desc()).limit(5)
     ).all()
     return list(baseline_rows), list(recent_rows)

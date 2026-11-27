@@ -79,6 +79,8 @@ class Machine(Base):
     sensor_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     state: Mapped[str] = mapped_column(String(20), default="setup")
     anomaly_threshold: Mapped[float | None] = mapped_column(Float)
+    # threshold set by the last baseline; false alarms raise anomaly_threshold from this (max +30 %)
+    threshold_base: Mapped[float | None] = mapped_column(Float)
     model_version: Mapped[str | None] = mapped_column(String(60))
     baseline_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     baseline_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

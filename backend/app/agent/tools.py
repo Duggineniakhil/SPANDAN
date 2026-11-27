@@ -29,6 +29,11 @@ SCRIPT_RANGES = {"kn": ("ಀ", "೿"), "hi": ("ऀ", "ॿ")}
 SCRIPT_NAMES = {"kn": "Kannada script (ಕನ್ನಡ ಲಿಪಿ, e.g. ನಮಸ್ಕಾರ)", "hi": "Devanagari script (देवनागरी, e.g. नमस्ते)"}
 
 
+class EventClosed(Exception):
+    """The event stopped waiting for a plan while the agent worked (e.g. the owner marked a false
+    alarm). Not a model mistake: the planner stops instead of trying another provider."""
+
+
 class ToolError(Exception):
     """Returned to the model as an error result; the model may correct itself and retry."""
 
@@ -188,6 +193,11 @@ def check_mechanic_availability(ctx: AgentContext, slot_id: str) -> dict:
 def submit_plan(ctx: AgentContext, quote_id: str, slot_id: str, fault_code: str, summary_en: str, voice_script: str) -> dict:
     if ctx.plan_id:
         raise ToolError("A plan has already been submitted for this event.")
+    # Re-read the event under a row lock: the owner may have closed it (false alarm) while the model
+    # was working, and the plan must not resurrect it. Serialises with mark_false_alarm.
+    ctx.db.refresh(ctx.event, with_for_update={"key_share": True})
+    if ctx.event.status != "diagnosed":
+        raise EventClosed(f"event is '{ctx.event.status}', no longer waiting for a plan")
     errors: list[str] = []
     lang = ctx.owner.language
 

@@ -87,7 +87,40 @@ export interface Plan {
   decided_via: string | null;
 }
 
+export type ActualFault =
+  | "bearing_outer" | "bearing_inner" | "bearing_ball" | "imbalance" | "misalignment" | "looseness"
+  | "no_fault_found" | "other";
+
+export interface JobCard {
+  actual_fault: ActualFault;
+  parts_replaced: string[];
+  notes: string;
+  submitted_by: "mechanic" | "owner";
+  predicted_fault: string | null;
+  diagnosis_correct: boolean | null;
+}
+
+export interface Job {
+  id: string;
+  plan_id: string;
+  status: "scheduled" | "done" | "no_show";
+  mechanic: string;
+  start: string;
+  end: string;
+  job_card: JobCard | null;
+}
+
+export interface FalseAlarmResult {
+  event: AnomalyEvent;
+  machine_state: string;
+  anomaly_threshold: number | null;
+  threshold_base: number | null;
+  threshold_raise_pct: number;
+  cancelled_plan_id: string | null;
+}
+
 export interface EventDetail extends AnomalyEvent {
+  jobs: Job[];
   diagnosis: Diagnosis | null;
   plans: Plan[];
 }
@@ -188,6 +221,11 @@ export const api = {
   decide: (planId: string, decision: "approve" | "reject", from_phone: string) =>
     post<Decision>(`/api/v1/plans/${planId}/decision`, { decision, channel: "tap", from_phone }),
   ownerMessages: (ownerId: string) => request<Message[]>(`/api/v1/owners/${ownerId}/messages`),
+  // Feedback: the mechanic's job card, the owner's false alarm
+  jobCard: (jobId: string, body: { actual_fault: ActualFault; parts_replaced: string[]; notes: string; from_phone: string }) =>
+    post<{ job: Job; event_status: string; machine_state: string; diagnosis_correct: boolean | null }>(`/api/v1/jobs/${jobId}/job-card`, body),
+  falseAlarm: (eventId: string, from_phone: string, note = "") =>
+    post<FalseAlarmResult>(`/api/v1/alerts/${eventId}/false-alarm`, { from_phone, note }),
   // Voice (Gnani on the server): the note is an OGG/Opus file; the reply is the owner's recording.
   voiceNoteUrl: (planId: string) => `/api/v1/plans/${planId}/voice-note`,
   voiceReply: async (planId: string, audio: Blob, from_phone: string): Promise<VoiceReply> => {

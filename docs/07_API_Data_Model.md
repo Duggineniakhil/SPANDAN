@@ -63,8 +63,8 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 ### Feedback
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/jobs/{id}/job-card` | Mechanic: actual fault, parts replaced, notes, photo (optional) |
-| POST | `/alerts/{id}/false-alarm` | Owner marks false alarm |
+| POST | `/jobs/{id}/job-card` | `{actual_fault, parts_replaced[], notes, from_phone}` (booked mechanic's or owner's number) → `{job, event_status: "resolved", machine_state: "baseline", diagnosis_correct}`. Stores the label, resolves the alert, starts a new baseline. 403 other number, 409 already submitted. Job ids: `GET /events/{id}` → `jobs` |
+| POST | `/alerts/{id}/false-alarm` | `{from_phone, note}` (owner) → `{event, machine_state, anomaly_threshold, threshold_base, threshold_raise_pct, cancelled_plan_id}`. Withdraws a pending plan; threshold = base × (1 + 5 % × false alarms since the last baseline, max 30 %). 409 if closed or a mechanic is already booked |
 
 ### Audit & admin
 | Method | Path | Purpose |
@@ -87,7 +87,8 @@ CREATE TABLE machines (
   machine_type TEXT,             -- 'flour_mill_motor', 'bench_rig'
   motor_rpm INT, bearing_model TEXT,   -- e.g. '6205-2RS'
   sensor_mac TEXT UNIQUE, state TEXT DEFAULT 'setup', -- setup|baseline|monitoring|alert|maintenance
-  anomaly_threshold REAL, model_version TEXT, baseline_started_at TIMESTAMPTZ, baseline_done_at TIMESTAMPTZ
+  anomaly_threshold REAL, threshold_base REAL,  -- base = set by the last baseline; false alarms raise anomaly_threshold
+  model_version TEXT, baseline_started_at TIMESTAMPTZ, baseline_done_at TIMESTAMPTZ
 );
 
 CREATE TABLE telemetry (

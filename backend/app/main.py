@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api import dashboard, events, machines, owners, plans, sim, telemetry, voice
+from app.api import dashboard, events, feedback, machines, owners, plans, sim, telemetry, voice
 from app.approval.sweep import sweep_loop
 from app.config import get_settings
 from app.security import require_token
@@ -41,6 +41,7 @@ api.include_router(telemetry.router)
 api.include_router(events.router)
 api.include_router(plans.router)
 api.include_router(voice.router)
+api.include_router(feedback.router)
 api.include_router(dashboard.router)
 api.include_router(sim.router)
 app.include_router(api)

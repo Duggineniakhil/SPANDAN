@@ -64,7 +64,42 @@ OWNER_TEMPLATES: dict[str, dict[str, str]] = {
         "hi": "{machine} में असामान्य कंपन दिखा है, पर कारण साफ़ नहीं है। कृपया मैकेनिक से जाँच करवाएँ।",
         "en": "{machine} is vibrating unusually, but the cause is not clear. Please get it inspected by a mechanic.",
     },
+    # M2-32: mechanic's job card received
+    "job_done": {
+        "kn": "{machine} ದುರಸ್ತಿ ಮುಗಿದಿದೆ: {fault}. ಈಗ ಸೆನ್ಸರ್ ಯಂತ್ರದ ಸಾಮಾನ್ಯ ಕಂಪನವನ್ನು ಮತ್ತೆ ಕಲಿಯುತ್ತಿದೆ. "
+              "ಯಂತ್ರವನ್ನು ಎಂದಿನಂತೆ ನಡೆಸಿ.",
+        "hi": "{machine} की मरम्मत पूरी हुई: {fault}। अब सेंसर मशीन का सामान्य कंपन फिर से सीख रहा है। "
+              "मशीन को हमेशा की तरह चलाइए।",
+        "en": "Repair of {machine} is done: {fault}. The sensor is now learning the machine's normal vibration "
+              "again. Run the machine as usual.",
+    },
+    # M2-33: owner marked the alert as a false alarm
+    "false_alarm": {
+        "kn": "ಸರಿ, {machine} ಎಚ್ಚರಿಕೆಯನ್ನು ತಪ್ಪು ಎಚ್ಚರಿಕೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ. ಏನನ್ನೂ ಬುಕ್ ಮಾಡಿಲ್ಲ. "
+              "ಈ ಯಂತ್ರಕ್ಕೆ ಎಚ್ಚರಿಕೆಯನ್ನು ಸ್ವಲ್ಪ ಕಡಿಮೆ ಸೂಕ್ಷ್ಮಗೊಳಿಸಿದ್ದೇವೆ.",
+        "hi": "ठीक है, {machine} की चेतावनी को गलत चेतावनी माना गया। कुछ भी बुक नहीं किया गया। "
+              "इस मशीन के लिए चेतावनी थोड़ी कम संवेदनशील कर दी गई है।",
+        "en": "Okay, the alert on {machine} is marked as a false alarm. Nothing was booked. "
+              "Alerts for this machine are now a little less sensitive.",
+    },
 }
+
+# Fault names for owner messages (the job card's actual fault)
+FAULT_TEXT: dict[str, dict[str, str]] = {
+    "bearing_outer": {"kn": "ಬೇರಿಂಗ್ ಹೊರ ರೇಸ್ ಸವೆತ", "hi": "बेयरिंग की बाहरी रेस घिसी", "en": "bearing outer-race wear"},
+    "bearing_inner": {"kn": "ಬೇರಿಂಗ್ ಒಳ ರೇಸ್ ಸವೆತ", "hi": "बेयरिंग की अंदरूनी रेस घिसी", "en": "bearing inner-race wear"},
+    "bearing_ball": {"kn": "ಬೇರಿಂಗ್ ಬಾಲ್ ಹಾನಿ", "hi": "बेयरिंग की गेंद खराब", "en": "bearing ball damage"},
+    "imbalance": {"kn": "ಅಸಮತೋಲನ", "hi": "असंतुलन", "en": "imbalance"},
+    "misalignment": {"kn": "ಜೋಡಣೆ ತಪ್ಪು", "hi": "अलाइनमेंट गड़बड़", "en": "misalignment"},
+    "looseness": {"kn": "ಸಡಿಲವಾದ ಭಾಗಗಳು", "hi": "ढीले पुर्ज़े", "en": "loose parts"},
+    "no_fault_found": {"kn": "ಯಾವುದೇ ದೋಷ ಕಂಡುಬಂದಿಲ್ಲ", "hi": "कोई खराबी नहीं मिली", "en": "no fault found"},
+    "other": {"kn": "ಬೇರೆ ದೋಷ", "hi": "कोई और खराबी", "en": "another fault"},
+}
+
+
+def fault_text(fault: str, lang: str) -> str:
+    names = FAULT_TEXT.get(fault, FAULT_TEXT["other"])
+    return names.get(lang, names["en"])
 
 # Sandbox messages to simulated dealers and mechanics (English)
 DEALER_ORDER = ("Order confirmation (sandbox): {qty} x {part_code} for {owner}. Pickup by the owner, "

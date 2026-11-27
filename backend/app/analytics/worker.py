@@ -120,11 +120,11 @@ def diagnose_windows(machine: Machine, alert: list[RawWindow], baseline: list[Ra
 def live_rul(db: Session, machine: Machine) -> dict:
     """RUL from telemetry rms_y vs baseline. Returns diagnosis fields: low, high, status, details."""
     settings = get_settings()
-    base_rows = db.scalars(select(Telemetry.features).where(
-        Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_(None)).order_by(Telemetry.ts.desc()).limit(500)).all()
+    base_rows = db.scalars(select(Telemetry.features).where(*diagnosis_v0.current_rows(machine, scored=False))
+                           .order_by(Telemetry.ts.desc()).limit(500)).all()
     base_vals = [f["rms_y"] for f in base_rows if isinstance(f.get("rms_y"), (int, float)) and f["rms_y"] > 0]
-    rows = db.scalars(select(Telemetry.features).where(
-        Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_not(None)).order_by(Telemetry.ts.desc()).limit(3000)).all()
+    rows = db.scalars(select(Telemetry.features).where(*diagnosis_v0.current_rows(machine, scored=True))
+                      .order_by(Telemetry.ts.desc()).limit(3000)).all()
     vals = [f.get("rms_y") for f in reversed(rows)]
     vals = [v for v in vals if isinstance(v, (int, float)) and v > 0]
     default = {"low": settings.default_repair_days, "high": None}
@@ -146,7 +146,9 @@ def diagnose_event(db: Session, machine: Machine, event: AnomalyEvent) -> Diagno
     since = datetime.now(UTC) - ALERT_WINDOW_MAX_AGE
     alert = _load(db, machine, "alert", since=since, limit=3)
     if alert:
-        faults, versions = diagnose_windows(machine, alert, _load(db, machine, "baseline", limit=3))
+        # baseline windows from the current baseline only (a repair starts a new one)
+        baseline = _load(db, machine, "baseline", since=machine.baseline_started_at, limit=3)
+        faults, versions = diagnose_windows(machine, alert, baseline)
     else:
         faults = diagnosis_v0.rank_faults(*diagnosis_v0.feature_rows(db, machine))
         versions = {"diagnosis": diagnosis_v0.MODEL_VERSIONS["diagnosis"], "windows": "0"}

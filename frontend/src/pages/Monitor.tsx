@@ -186,7 +186,11 @@ export default function Monitor() {
           </div>
         </section>
 
-        {owner && <RepairPanel machineId={machine.id} owner={owner} />}
+        {owner && (
+          <RepairPanel machineId={machine.id} owner={owner}
+            onRepaired={() => void gwRef.current?.afterRepair()}
+            onFalseAlarm={(t, pct) => gwRef.current?.applyThreshold(t, pct)} />
+        )}
 
         <section className="card chart-card wide">
           <div className="card-head"><h2>Anomaly score</h2><span className="legend"><i className="lg-score" /> score <i className="lg-thr" /> alert threshold</span></div>
