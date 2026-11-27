@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     # Approval engine: how often to send 24 h reminders / expire 48 h-old plans (0 = off)
     approval_sweep_interval_s: float = 300
 
+    # Diagnosis + RUL (M2-26). Paths are relative to backend/; the files come from the ML runs.
+    # The model file is a pickle: only ever point this at our own trained artifact.
+    diagnosis_model_path: str = "../ml/results/diagnosis-hgb-v1.joblib"
+    rul_config_path: str = "../ml/results/rul_config_v1.json"
+    default_repair_days: float = 3.0   # repair deadline when RUL has no trend yet (conservative)
+    reading_interval_min: float = 1.0  # one reading per minute on the phone (the web demo runs faster)
+    raw_windows_keep: int = 12         # raw windows kept per machine and kind
+
     # Anomaly rule on the server (backup for the phone's own alert)
     server_alert_consecutive: int = 3
 

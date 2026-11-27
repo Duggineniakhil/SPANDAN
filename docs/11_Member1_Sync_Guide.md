@@ -11,7 +11,7 @@ must send and read to plug into it, and a sensible order to build in.
 | Anomaly events + server backup rule (M2-07) | ✅ |
 | Sandbox dealers/mechanics + coordinator agent (M2-08 – M2-12) | ✅ Groq + Gemini fallback, writes the plan and the owner's message in Kannada/Hindi |
 | Approval engine (M2-13 – M2-18) | ✅ owner approve/reject (only from the registered number), executor, 24 h reminder, 48 h expiry, owner messages |
-| Diagnosis + RUL models (M2-19 – M2-25) | ✅ trained/evaluated (CWRU 87 % accuracy; IMS RUL); wiring into live events is next (M2-26) |
+| Diagnosis + RUL (M2-19 – M2-26) | ✅ trained, evaluated and live: every alert is diagnosed from raw windows and gets days-left |
 | Voice (Gnani), job card, false alarm (M2-27 – M2-33) | ⏳ not built yet |
 | **Android app (all M1 tasks)** | ❌ **nothing in the repo yet** (no `android/` folder, no commits from Member 1) |
 
@@ -45,6 +45,11 @@ Put the token in `local.properties` → `BuildConfig`, never in git.
 - **Monitoring rows: `anomaly_score` + `health_index` (0–100) + `model_version`.**
 - Feature names the cloud reads now (keep these exact names): `rms_y` (RUL), `env_bpfo_y`, `kurtosis_y`, `amp_1x_y`,
   `amp_3x_y`, `band_0_25_y` (diagnosis). Send the full set from `features.ts`; extra features are kept.
+
+### Raw windows (for diagnosis)
+`POST /api/v1/machines/{id}/windows` `{kind: "baseline"|"alert", ts, fs, rpm, windows: [[g, …], …]}`, up to 3 windows of the radial axis.
+Send 3 right after the baseline, and the **last 3 windows before an alert, before** syncing that alert's readings.
+Without them the cloud falls back to rougher feature-ratio rules. See `gateway.ts` (`recent`, `uploadWindows`).
 
 ### Alert (M1-20)
 On the 3rd reading in a row over the threshold: `POST /api/v1/events/anomaly` `{machine_id, started_at, peak_score}`.

@@ -7,7 +7,7 @@
 import { api, type BatchResult, type TelemetryRow } from "./api";
 import { AlertRule, MODEL_VERSION, ema, fitBaseline, healthIndex, score, topContributors, type Baseline } from "./detector";
 import { extractFeatures, type Spectrum } from "./features";
-import { generateWindow, type FaultType } from "./signal";
+import { FS, generateWindow, type FaultType } from "./signal";
 
 export const BASELINE_WINDOWS = 30;
 const SYNC_EVERY = 10;
@@ -66,7 +66,8 @@ export class Gateway {
   private smoothHealth: number | null = null;
   private logId = 0;
   private syncing = false;
-  private pendingReport: { startedAt: string; peak: number } | null = null;
+  private pendingReport: { startedAt: string; peak: number; windows: number[][] } | null = null;
+  private recent: Float64Array[] = []; // last raw windows (radial axis): sent with an alert for diagnosis
 
   state: GatewayState;
 
@@ -160,6 +161,16 @@ export class Gateway {
   private async reportAlert() {
     const r = this.pendingReport;
     if (!r || !this.state.online) return;
+    try {
+      // Raw windows first: the cloud diagnoses from them, even if its own backup rule opens the event
+      // as soon as the readings arrive.
+      if (r.windows.length) {
+        await api.uploadWindows(this.machineId, "alert", FS, this.rpm, r.windows);
+        r.windows = [];
+      }
+    } catch (e) {
+      this.log("error", `Raw windows not sent: ${(e as Error).message}`);
+    }
     await this.sync();
     try {
       const ev = await api.reportAnomaly(this.machineId, r.startedAt, r.peak);
@@ -178,6 +189,7 @@ export class Gateway {
     if (s.fault !== "none" && s.progressive) severity = Math.min(1, severity + 0.015);
 
     const w = generateWindow(s.fault, severity, this.rpm);
+    this.recent = [...this.recent, w.y].slice(-3);
     const { features, spectrum, envSpectrum, rpmEstimate } = extractFeatures(w);
     const windowCount = s.windowCount + 1;
     const t = Date.now();
@@ -198,6 +210,8 @@ export class Gateway {
         this.log("ok", `Baseline learned. Alert threshold ${baseline.threshold.toFixed(2)}.`);
         try {
           await api.completeBaseline(this.machineId, baseline.threshold, MODEL_VERSION);
+          // A few raw healthy windows: the cloud's reference for imbalance and diagnosis.
+          await api.uploadWindows(this.machineId, "baseline", FS, this.rpm, this.recent.map(toList));
         } catch (e) {
           this.log("error", `Baseline not saved on server: ${(e as Error).message}`);
         }
@@ -222,7 +236,7 @@ export class Gateway {
         const why = contributors.map((c) => c.name).join(", ");
         this.log("alert", `Unusual vibration for 3 readings in a row (score ${sc.toFixed(1)}). Biggest changes: ${why}.`);
         if (!s.online) this.log("alert", "No network: SMS alert sent to the owner (simulated).");
-        this.pendingReport = { startedAt: new Date(t).toISOString(), peak: sc };
+        this.pendingReport = { startedAt: new Date(t).toISOString(), peak: sc, windows: this.recent.map(toList) };
         void this.reportAlert();
       } else if (change === "cleared") {
         this.log("ok", "Vibration back to normal.");
@@ -259,6 +273,11 @@ export class Gateway {
       this.syncing = false;
     }
   }
+}
+
+/** Raw window → plain numbers, rounded to 0.1 mg (keeps the upload small). */
+function toList(y: Float64Array): number[] {
+  return Array.from(y, (v) => Math.round(v * 1e4) / 1e4);
 }
 
 // The phone keeps its baseline locally (doc 04 §6); here that's localStorage.

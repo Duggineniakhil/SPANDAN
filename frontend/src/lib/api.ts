@@ -166,6 +166,8 @@ export const api = {
     post<Machine>(`/api/v1/machines/${id}/baseline/complete`, { anomaly_threshold, model_version }),
   uploadBatch: (machine_id: string, device_id: string, rows: TelemetryRow[]) =>
     post<BatchResult>("/api/v1/telemetry/batch", { machine_id, device_id, rows }),
+  uploadWindows: (machineId: string, kind: "baseline" | "alert", fs: number, rpm: number, windows: number[][]) =>
+    post<{ stored: number }>(`/api/v1/machines/${machineId}/windows`, { kind, ts: new Date().toISOString(), fs, rpm, windows }),
   // Cloud side: events, diagnosis, plans, approval (Member 2 backend)
   reportAnomaly: (machine_id: string, started_at: string, peak_score: number) =>
     post<AnomalyEvent>("/api/v1/events/anomaly", { machine_id, started_at, peak_score }),

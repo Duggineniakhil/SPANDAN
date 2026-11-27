@@ -16,6 +16,9 @@ The LLM **proposes**; the approval engine **disposes**. The agent has no tool th
 
 ## 2. Trigger
 
+Implemented in `backend/app/analytics/worker.py` (M2-26). **Diagnosis:** physics rules on the device's last raw windows, combined with the CWRU-trained classifier for bearing faults (`1 − (1 − rule)(1 − 0.6·classifier)`); best < 0.5 → `unknown` → inspection message, no plan. **Days left:** RUL fit on `rms_y` vs the machine's baseline (`ok`, with low–high), recomputed on every upload; with no trend yet a labelled **3-day safety window** (`default_window`) so the agent still has a deadline. The low end is the repair deadline. If days-left later drops below a pending plan's slot, the app warns the owner (automatic re-planning is a follow-up).
+
+
 `anomaly_event` → worker writes `diagnosis` → enqueue `plan_job(event_id)`. Skip the agent if `rul_status = insufficient_data` and top-1 confidence < 0.5: send a template "please get the machine inspected" message instead.
 
 ## 3. Tools exposed to the LLM (all read-only or "request" actions)

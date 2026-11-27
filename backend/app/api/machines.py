@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.analytics.worker import store_windows
 from app.audit import audit
 from app.db import get_db
 from app.models import Machine, Owner
-from app.schemas import BaselineComplete, MachineCreate, MachineOut
+from app.schemas import BaselineComplete, MachineCreate, MachineOut, RawWindowsIn, RawWindowsOut
 
 router = APIRouter(prefix="/machines", tags=["machines"])
 
@@ -82,3 +83,15 @@ def complete_baseline(machine_id: uuid.UUID, body: BaselineComplete, db: Session
           details=body.model_dump())
     db.commit()
     return machine
+
+
+@router.post("/{machine_id}/windows", response_model=RawWindowsOut, status_code=status.HTTP_201_CREATED)
+def upload_windows(machine_id: uuid.UUID, body: RawWindowsIn, db: Session = Depends(get_db)) -> RawWindowsOut:
+    """Up to 3 raw radial-axis windows (g): a few from the baseline, and the last ones before an alert
+    (send these before the alert's readings and `POST /events/anomaly`). Used for diagnosis."""
+    machine = _get_machine(db, machine_id)
+    n = store_windows(db, machine, body.kind, body.ts, body.fs, body.rpm, body.windows)
+    audit(db, actor="device", action="raw_windows_uploaded", entity="machine", entity_id=machine.id,
+          details={"kind": body.kind, "count": n, "fs": body.fs, "samples": len(body.windows[0])})
+    db.commit()
+    return RawWindowsOut(stored=n)

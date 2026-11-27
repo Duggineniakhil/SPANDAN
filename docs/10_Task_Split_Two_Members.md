@@ -104,7 +104,7 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-23** Evaluate diagnosis: accuracy, macro-F1, confusion matrix (CWRU): leave-one-load-out accuracy 0.874, macro-F1 0.846
 - [x] **M2-24** RUL: exponential fit + bootstrap interval → `{low, high}` or `insufficient_data`
 - [x] **M2-25** Evaluate RUL on IMS leave-one-bearing-out: MAE at life checkpoints, interval coverage, width
-- [ ] **M2-26** Analytics worker: on anomaly event → diagnosis + RUL → `diagnoses` row → trigger agent
+- [x] **M2-26** Analytics worker: on anomaly event → diagnosis + RUL → `diagnoses` row → trigger agent (`app/analytics/worker.py`: raw windows → rules + CWRU classifier; live RUL from `rms_y`, refreshed on every upload)
 
 ### Week 4–5 · Voice
 - [ ] **M2-27** `VoiceProvider` interface + Gnani adapter: TTS and STT for kn + hi, key from `.env`, timeout + error handling

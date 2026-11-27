@@ -11,6 +11,7 @@ Base URL: `/api/v1`. JSON everywhere. Prototype auth: one static device token pe
 | POST | `/machines` | Register machine (owner_id, name, type, motor_rpm, bearing_model, sensor_mac) |
 | POST | `/machines/{id}/baseline/start` | Start baseline period |
 | POST | `/machines/{id}/baseline/complete` | Mark baseline done; upload threshold + model version |
+| POST | `/machines/{id}/windows` | Up to 3 raw radial windows (g) `{kind: baseline\|alert, ts, fs, rpm, windows: [[...]]}`. Send a few after the baseline, and the last 3 **before** an alert's readings and `/events/anomaly`; diagnosis uses them (without them: feature-ratio rules) |
 
 ### Telemetry
 | Method | Path | Purpose |
@@ -104,7 +105,7 @@ CREATE TABLE anomaly_events (
 CREATE TABLE diagnoses (
   id UUID PRIMARY KEY, event_id UUID REFERENCES anomaly_events(id),
   faults JSONB,          -- [{"fault":"outer_race","confidence":0.71,"evidence":"BPFO peak 3.6x"}, ...]
-  rul_days_low REAL NULL, rul_days_high REAL NULL, rul_status TEXT, -- ok|insufficient_data|low_confidence
+  rul_days_low REAL NULL, rul_days_high REAL NULL, rul_status TEXT, -- ok|default_window|insufficient_data
   model_versions JSONB, created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -123,6 +124,11 @@ CREATE TABLE quotes (               -- dealer answers; the stored price is the s
 );
 -- mechanic_slots also has held_for_event_id + held_until (slot held while a plan awaits approval)
 -- dealers also has reply_style (how the sandbox dealer writes)
+
+CREATE TABLE raw_windows (          -- last few raw windows per machine for diagnosis (float32 bytes)
+  id UUID PRIMARY KEY, machine_id UUID REFERENCES machines(id), kind TEXT CHECK (kind IN ('baseline','alert')),
+  ts TIMESTAMPTZ, fs INT, rpm REAL NULL, samples BYTEA, created_at TIMESTAMPTZ DEFAULT now()
+);
 
 CREATE TABLE messages (             -- outbox; delivery channels (push, WhatsApp, voice note) read from here
   id UUID PRIMARY KEY, to_kind TEXT CHECK (to_kind IN ('owner','dealer','mechanic')), to_id UUID,

@@ -64,7 +64,9 @@ def test_phone_event_opens_once_and_is_diagnosed(client, machine):
     assert detail["status"] == "diagnosed"
     assert detail["peak_score"] == 30.0
     assert detail["diagnosis"]["faults"][0]["fault"] == "bearing_outer"
-    assert detail["diagnosis"]["rul_status"] == "placeholder"
+    # a few readings, no wear trend yet → conservative default repair window, labelled as such
+    assert detail["diagnosis"]["rul_status"] == "default_window"
+    assert detail["diagnosis"]["rul_days_low"] == 3.0 and detail["diagnosis"]["rul_days_high"] is None
     assert client.get(f"/api/v1/machines/{machine['id']}").json()["state"] == "alert"
 
 

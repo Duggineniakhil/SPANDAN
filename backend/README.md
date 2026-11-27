@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -37,6 +37,7 @@ Tests use the `spandan_test` database and wipe it between tests.
 | GET | `/api/v1/machines/{id}` | |
 | POST | `/api/v1/machines/{id}/baseline/start` | from setup / monitoring / maintenance |
 | POST | `/api/v1/machines/{id}/baseline/complete` | `{anomaly_threshold, model_version}` → monitoring |
+| POST | `/api/v1/machines/{id}/windows` | Up to 3 raw windows (`baseline` or `alert`) for diagnosis |
 | POST | `/api/v1/telemetry/batch` | Idempotent by `row_id`; returns `{accepted, duplicates, rejected}` |
 | GET | `/api/v1/machines/{id}/telemetry?from&to&features&max_points` | Chart series; long ranges bucketed (max score, min health) |
 | GET | `/api/v1/machines/{id}/health` | Latest reading, state, open event, pending plan |
@@ -59,7 +60,7 @@ provider takes over on any failure (API error, timeout, or plans the rules keep 
 events are still diagnosed but not planned. Run `POST /api/v1/sim/reset` once so there are dealers and mechanics.
 
 Code: `app/agent/` (tools, provider wrapper, loop, prompt), `app/sim/` (sandbox), `app/events.py`,
-`app/analytics/diagnosis_v0.py` (placeholder diagnosis; RUL is a labelled placeholder until M2-24).
+`app/analytics/worker.py` (diagnosis from raw windows: rules + the trained CWRU classifier; live RUL; falls back to `diagnosis_v0.py` feature ratios when no raw windows were sent). The model and RUL settings load from `../ml/results/` (`DIAGNOSIS_MODEL_PATH`, `RUL_CONFIG_PATH`); `DEFAULT_REPAIR_DAYS`, `READING_INTERVAL_MIN`.
 
 Diagnosis building blocks (M2-20, M2-21): `app/analytics/bearings.py` + `bearings.csv` (fault frequencies from bearing
 geometry), `signal.py` (Welch and envelope spectra), `rules.py` (physics rule scorer with evidence), and

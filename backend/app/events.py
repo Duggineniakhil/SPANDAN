@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.analytics.diagnosis_v0 import diagnose
+from app.analytics.worker import diagnose_event
 from app.audit import audit
 from app.config import get_settings
 from app.models import AnomalyEvent, Machine, Telemetry
@@ -34,7 +34,7 @@ def open_event(db: Session, machine: Machine, started_at: datetime, peak_score: 
     audit(db, actor="device" if source == "phone" else "system", action="anomaly_event_opened",
           entity="anomaly_event", entity_id=event.id, details={"source": source, "peak_score": peak_score})
 
-    diagnosis = diagnose(db, machine, event)
+    diagnosis = diagnose_event(db, machine, event)
     event.status = "diagnosed"
     audit(db, actor="system", action="event_diagnosed", entity="anomaly_event", entity_id=event.id,
           details={"faults": diagnosis.faults, "rul_status": diagnosis.rul_status})

@@ -1,17 +1,16 @@
-"""Placeholder fault diagnosis (v0) until the trained models land (tasks M2-19 – M2-26).
+"""Feature-ratio fault ranking (v0): the fallback when the device sent no raw windows.
 
 Compares the latest readings with this machine's baseline readings on a few physics-based
-indicators and ranks the likely faults. RUL is a fixed placeholder range, clearly labelled.
+indicators and ranks the likely faults. Used by app/analytics/worker.py.
 """
 import math
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AnomalyEvent, Diagnosis, Machine, Telemetry
+from app.models import Machine, Telemetry
 
-MODEL_VERSIONS = {"diagnosis": "ratio-rules-v0", "rul": "placeholder-v0"}
+MODEL_VERSIONS = {"diagnosis": "ratio-rules-v0"}
 
 # fault → [(feature, plain-language evidence)]
 INDICATORS: dict[str, list[tuple[str, str]]] = {
@@ -27,7 +26,6 @@ INDICATORS: dict[str, list[tuple[str, str]]] = {
 }
 
 MIN_RATIO = 1.5  # below this nothing stands out → "unknown"
-PLACEHOLDER_RUL = (4.0, 8.0)
 
 
 def _mean(rows: list[dict], name: str) -> float | None:
@@ -61,8 +59,8 @@ def rank_faults(baseline: list[dict], recent: list[dict]) -> list[dict]:
     ]
 
 
-def diagnose(db: Session, machine: Machine, event: AnomalyEvent) -> Diagnosis:
-    # Baseline readings carry no anomaly score; monitoring readings do.
+def feature_rows(db: Session, machine: Machine) -> tuple[list[dict], list[dict]]:
+    """(baseline feature rows, latest monitoring feature rows). Baseline readings carry no anomaly score."""
     baseline_rows = db.scalars(
         select(Telemetry.features).where(Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_(None))
         .order_by(Telemetry.ts.desc()).limit(200)
@@ -71,17 +69,4 @@ def diagnose(db: Session, machine: Machine, event: AnomalyEvent) -> Diagnosis:
         select(Telemetry.features).where(Telemetry.machine_id == machine.id, Telemetry.anomaly_score.is_not(None))
         .order_by(Telemetry.ts.desc()).limit(5)
     ).all()
-
-    faults = rank_faults(list(baseline_rows), list(recent_rows))
-    known = faults[0]["fault"] != "unknown"
-    diagnosis = Diagnosis(
-        id=uuid.uuid4(),
-        event_id=event.id,
-        faults=faults,
-        rul_days_low=PLACEHOLDER_RUL[0] if known else None,
-        rul_days_high=PLACEHOLDER_RUL[1] if known else None,
-        rul_status="placeholder" if known else "insufficient_data",
-        model_versions=MODEL_VERSIONS,
-    )
-    db.add(diagnosis)
-    return diagnosis
+    return list(baseline_rows), list(recent_rows)

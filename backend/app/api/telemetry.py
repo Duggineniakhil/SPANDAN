@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.audit import audit
 from app.config import get_settings
 from app.db import get_db
+from app.analytics.worker import refresh_rul
 from app.events import check_server_rule, plan_in_background
 from app.models import Machine, Telemetry
 from app.schemas import RejectedRow, TelemetryBatch, TelemetryBatchResult
@@ -64,6 +65,8 @@ def upload_batch(batch: TelemetryBatch, background: BackgroundTasks, db: Session
           details={"device_id": batch.device_id, "accepted": accepted,
                    "duplicates": duplicates, "rejected": len(rejected)})
     opened = check_server_rule(db, machine) if accepted else None
+    if accepted and not (opened and opened[1]):
+        refresh_rul(db, machine)  # an alert is open: update days-left with the new readings
     db.commit()
     if opened and opened[1] and settings.agent_auto_plan:
         background.add_task(plan_in_background, opened[0].id)

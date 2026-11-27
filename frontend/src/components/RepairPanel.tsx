@@ -27,6 +27,16 @@ const MESSAGE_LABEL: Record<string, string> = {
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+/** Days → "2–5 days", or hours when it is short (the web demo runs ~60× faster than a mill). */
+function span(low: number, high?: number): string {
+  const top = high ?? low;
+  if (top < 2) {
+    const h = (d: number) => Math.max(0, Math.round(d * 24 * 10) / 10);
+    return high == null ? `${h(low)} hours` : `${h(low)}–${h(high)} hours`;
+  }
+  const r = (d: number) => Math.round(d * 10) / 10;
+  return high == null ? `${r(low)} days` : `${r(low)}–${r(high)} days`;
+}
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const maskPhone = (p: string) => p.replace(/\d(?=\d{4})/g, "•");
 
@@ -119,7 +129,9 @@ export default function RepairPanel({ machineId, owner }: { machineId: string; o
           <div className="plan-col">
             <AnimatePresence mode="wait">
               {plan ? (
-                <PlanCard key={plan.id + plan.state} plan={plan} owner={owner} busy={busy} onDecide={decide} />
+                <PlanCard key={plan.id + plan.state} plan={plan} owner={owner} busy={busy} onDecide={decide}
+                  failBy={event.diagnosis?.rul_status === "ok" && event.diagnosis.rul_days_low != null
+                    ? Date.now() + event.diagnosis.rul_days_low * 86_400_000 : null} />
               ) : couldNotPlan ? (
                 <motion.div key="noplan" className="plan-waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <p>{couldNotPlan.text}</p>
@@ -149,7 +161,6 @@ function Diagnosis({ event }: { event: EventDetail }) {
   const d = event.diagnosis;
   if (!d) return <div className="diag-col"><p className="muted">Diagnosing…</p></div>;
   const top = d.faults[0];
-  const placeholder = d.rul_status === "placeholder";
   return (
     <div className="diag-col">
       <span className="kicker">Likely fault</span>
@@ -164,26 +175,35 @@ function Diagnosis({ event }: { event: EventDetail }) {
           </li>
         ))}
       </ul>
-      {d.rul_days_low != null && d.rul_days_high != null ? (
+      {d.rul_status === "ok" && d.rul_days_low != null && d.rul_days_high != null ? (
         <div className="rul">
           <CalendarClock size={16} />
-          <span><b>{Math.round(d.rul_days_low)}–{Math.round(d.rul_days_high)} days</b> before it is likely to fail</span>
-          {placeholder && <em className="muted small">(estimate placeholder)</em>}
+          <span><b>{span(d.rul_days_low, d.rul_days_high)}</b> before it is likely to fail</span>
+          <em className="muted small">from the wear trend · repair before the low end</em>
+        </div>
+      ) : d.rul_status === "default_window" && d.rul_days_low != null ? (
+        <div className="rul">
+          <CalendarClock size={16} />
+          <span>No clear wear trend yet: <b>repair within {span(d.rul_days_low)}</b></span>
+          <em className="muted small">safety window; updates as readings arrive</em>
         </div>
       ) : (
-        <p className="muted small">Not enough data to estimate days left.</p>
+        <p className="muted small">Cause unclear, so no days-left estimate: get the machine inspected.</p>
       )}
+      <p className="mono dim model-tag">{d.model_versions.diagnosis}{d.model_versions.windows !== "0" ? ` · ${d.model_versions.windows} raw windows` : " · features only"}</p>
     </div>
   );
 }
 
-function PlanCard({ plan, owner, busy, onDecide }: {
-  plan: Plan; owner: Owner; busy: string | null; onDecide: (d: "approve" | "reject") => void;
+function PlanCard({ plan, owner, busy, onDecide, failBy }: {
+  plan: Plan; owner: Owner; busy: string | null; onDecide: (d: "approve" | "reject") => void; failBy: number | null;
 }) {
   const p = plan.plan;
   const part = p.actions.find((a): a is Extract<PlanAction, { type: "buy_part" }> => a.type === "buy_part");
   const mech = p.actions.find((a): a is Extract<PlanAction, { type: "book_mechanic" }> => a.type === "book_mechanic");
   const pending = plan.state === "pending";
+  // Days-left is recomputed as readings arrive; warn if it now ends before the booked slot.
+  const tooLate = pending && mech != null && failBy != null && new Date(mech.start).getTime() > failBy;
   const stateLabel: Record<Plan["state"], string> = {
     draft: "Draft", pending: "Waiting for the owner", approved: "Approved", executed: "Booked",
     rejected: "Rejected by the owner", expired: "Expired (no reply)", cancelled: "Cancelled",
@@ -207,6 +227,9 @@ function PlanCard({ plan, owner, busy, onDecide }: {
         <blockquote className="voice" lang={plan.voice_script.lang}>
           <MessageSquare size={14} /> {plan.voice_script.text}
         </blockquote>
+      )}
+      {tooLate && (
+        <p className="late-warn small">The latest wear trend says it may fail before this slot. Ask for a new plan or call a mechanic sooner.</p>
       )}
       {pending ? (
         <>

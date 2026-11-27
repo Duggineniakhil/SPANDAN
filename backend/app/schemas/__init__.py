@@ -274,3 +274,25 @@ class AuditOut(BaseModel):
     entity: str
     entity_id: uuid.UUID | None
     details: dict
+
+
+# ---------- Raw windows (for diagnosis) ----------
+
+class RawWindowsIn(StrictModel):
+    kind: Literal["baseline", "alert"]
+    ts: AwareDatetime
+    fs: int = Field(ge=1000, le=51200, description="Sampling rate, Hz")
+    rpm: float | None = Field(default=None, ge=60, le=30000)
+    windows: list[Annotated[list[float], Field(min_length=1024, max_length=65536)]] = Field(min_length=1, max_length=3)
+
+    @field_validator("windows")
+    @classmethod
+    def _range(cls, v: list[list[float]]) -> list[list[float]]:
+        for w in v:
+            if max(abs(min(w)), abs(max(w))) > 16:
+                raise ValueError("samples must be in g within ±16 g")
+        return v
+
+
+class RawWindowsOut(BaseModel):
+    stored: int

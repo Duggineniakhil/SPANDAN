@@ -15,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     func,
@@ -30,6 +31,7 @@ SLOT_STATUSES = ("free", "held", "booked")
 JOB_STATUSES = ("scheduled", "done", "no_show")
 AUDIT_ACTORS = ("system", "agent", "owner", "mechanic", "operator", "device")
 MESSAGE_RECIPIENTS = ("owner", "dealer", "mechanic")
+RAW_WINDOW_KINDS = ("baseline", "alert")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -284,3 +286,23 @@ class Message(Base):
     channel: Mapped[str] = mapped_column(String(10), default="app")
     created_at: Mapped[datetime] = _created_at()
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RawWindow(Base):
+    """A few raw vibration windows from the device (radial axis, g, float32): some from the baseline
+    and the last ones before an alert. Diagnosis needs them; telemetry rows only carry features."""
+
+    __tablename__ = "raw_windows"
+    __table_args__ = (
+        CheckConstraint(_in("kind", RAW_WINDOW_KINDS), name="kind_valid"),
+        Index("ix_raw_windows_machine_kind_ts", "machine_id", "kind", "ts"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    machine_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("machines.id"))
+    kind: Mapped[str] = mapped_column(String(10))
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    fs: Mapped[int] = mapped_column(Integer)
+    rpm: Mapped[float | None] = mapped_column(Float)
+    samples: Mapped[bytes] = mapped_column(LargeBinary)  # float32 little-endian
+    created_at: Mapped[datetime] = _created_at()

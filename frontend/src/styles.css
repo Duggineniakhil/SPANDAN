@@ -366,3 +366,5 @@ p { line-height: 1.6; margin: 0; }
 .spin { animation: spin 0.9s linear infinite; }
 .spin-slow { animation: spin 3s linear infinite; color: var(--volt); flex: none; }
 @media (max-width: 1100px) { .repair-grid { grid-template-columns: 1fr; } }
+.model-tag { margin-top: 12px; font-size: 0.62rem; }
+.late-warn { color: var(--bad); border: 1px solid var(--bad); padding: 10px 12px; }
