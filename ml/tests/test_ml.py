@@ -159,3 +159,28 @@ def test_training_refuses_a_different_sklearn(monkeypatch, tmp_path):
     monkeypatch.setattr(sklearn, "__version__", "0.0.1")
     with pytest.raises(RuntimeError, match="pinned"):
         run_cwru(str(tmp_path), str(tmp_path))
+
+
+# ---------- RUL evaluation (M2-25) ----------
+
+def test_rul_evaluation_leave_one_bearing_out():
+    from app.analytics.rul import RulConfig
+    from spandan_ml.rul_eval import FAILED, evaluate
+
+    rng = np.random.default_rng(0)
+    series = {}
+    for k, unit in enumerate([(t, b) for t in (1, 2, 3) for b in range(1, 5)]):
+        t = np.arange(0, 6, 1 / 144)
+        if unit in FAILED:  # degrades from day 3, fails at the end at ratio ~ 4-6
+            g = np.log(4 + k % 3) / 3
+            r = np.where(t < 3, 1.0, np.exp(g * (t - 3)))
+        else:
+            r = np.ones_like(t)
+        series[unit] = {"t_days": t, "ratio": r * np.exp(0.02 * rng.standard_normal(len(t))),
+                        "failed_with": "bearing_outer" if unit in FAILED else ""}
+    rep = evaluate(series, RulConfig(n_boot=100), step=24)
+    a = rep["all_points_after_onset"]
+    assert a["n_predicted"] > 0 and a["mae_days"] < 1.0 and a["low_bound_safe"] >= 0.8
+    assert all(u["onset_days"] is not None for u in rep["units"].values())
+    assert all(h["onset_days_before_test_end"] is None for h in rep["healthy_bearings"].values())
+    assert rep["life_checkpoints"]["life_50"]["no_degradation"] == 4  # before day 3 nothing is predicted

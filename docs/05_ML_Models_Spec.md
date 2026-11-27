@@ -65,6 +65,24 @@ Notes:
 | Metrics | On IMS (leave-one-bearing-out): MAE of median RUL in days at checkpoints (e.g. 50 %, 70 %, 90 % of life); **interval coverage** (fraction of true RULs inside the 10–90 % band, target ≈ 80 %); interval width |
 | Time scaling | IMS life is days-scale; bench progressive-wear runs are hours-scale → for the demo, show RUL in hours on the bench and explain scaling |
 
+### Implementation and results (IMS, leave-one-bearing-out)
+- Code: `backend/app/analytics/rul.py` (`rul-loglinear-v1`), evaluation `ml/spandan_ml/rul_eval.py`, settings `ml/results/rul_config_v1.json`, report `ml/results/rul_eval_report.json`, plot `ml/results/rul_ims.png`.
+- **Indicator:** RMS ÷ the machine's own baseline RMS (in production: telemetry `rms_y` vs its baseline rows). Smoothed with a trailing 6-reading median.
+- **Onset:** the ratio stays ≥ 1.5 for 6 readings. Before that the result is `no_degradation`, and no RUL is given (correct at 50 % and 70 % of life for all 4 failed bearings).
+- **Fit:** a straight line on log(running maximum) since onset. Wear doesn't heal, and IMS shows transient dips that broke plain fits. The fit needs ≥ 12 points, a rising trend and R² ≥ 0.6, else `insufficient_data`.
+- **Range:** 10–90 % of a moving-block bootstrap (correlated residuals) × failure levels seen in training (IMS: 2.7×–6.9× baseline).
+- **Results over all points after onset (221 of 351 had a prediction):**
+
+| Range | Coverage | Low end safe (bearing lasted ≥ low) | Mean width | MAE of median |
+|-------|----------|-------------------------------------|-----------|---------------|
+| **Bootstrap (chosen)** | 46 % | **93 %** | **2.9 days** | 1.7 days |
+| Calibrated on training bearings | 85 % | 94 % | 24 days | 1.7 days |
+
+  The bootstrap range misses mostly on the **safe side**: in 47 % of predictions the bearing lasted longer than the high end. The **low end becomes the repair deadline**, and it held in 93 % of predictions. Calibrating to 80 % coverage needed ~24-day ranges, which tell an owner nothing.
+- **Per bearing (plot):** test 3 bearing 3 is predicted early (safe). Test 1 bearing 4 tracks for 2 days, then overestimates during a long plateau. Test 1 bearing 3 overestimates for the first day after onset (≈10 days predicted, 1.4 true). Test 2 bearing 1 is too irregular, so it is never predicted (`insufficient_data`).
+- **Healthy bearings** cross the onset level only in the last 0.1–1.1 days of each test, when the whole rig shakes from the failed bearing. So RUL runs only for the machine whose alert fired.
+- **Limits:** 4 failed bearings; the method choices (running maximum, block bootstrap) were compared on the same bearings, so the numbers are optimistic. IMS failure is days-scale and abrupt. The bench rig (hours-scale) needs its own check.
+
 ## 4. Evaluation report (deliverable)
 `ml/REPORT.md` with, for each model: data used, split, metrics table, confusion matrix / ROC plot, failure cases, and limitations (MIMII is sound, CWRU is lab-seeded faults, IMS is a test rig, bench is small). Replace "RESULTS PENDING" on slide 9 with these numbers.
 
@@ -73,7 +91,7 @@ Notes:
 |----------|--------|----------|
 | `anomaly_ae_v{n}.tflite` + `scaler_v{n}.json` | TFLite + JSON | Android |
 | `diagnosis_v{n}.joblib` + `bearings.csv` | joblib | Analytics worker |
-| `rul_config_v{n}.json` | JSON (thresholds, priors) | Analytics worker |
+| `rul_config_v{n}.json` | JSON (failure levels, onset rule, fit settings) | Analytics worker (`RulConfig.from_dict`) |
 | `features_golden.json` | JSON | Python + Kotlin tests |
 
 Every telemetry row and diagnosis records `model_version`.

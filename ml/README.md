@@ -25,6 +25,7 @@ rate, and says where each label came from (`filename` or the `cwru_number` insid
 | `spandan_ml/ims.py` | IMS loader: test sets, snapshots, channels per bearing, which bearing failed how |
 | `spandan_ml/features.py` | Window features (doc 04 §4 statistics, band shares) + physics rule scores |
 | `spandan_ml/diagnosis.py` | Classifier (calibrated HistGradientBoosting), leave-one-load-out + grouped-by-recording evaluation, rules-only baseline, top-3 + `unknown` inference |
+| `spandan_ml/rul_eval.py` | RUL leave-one-bearing-out on the IMS indicator CSVs (runs locally): `python -m spandan_ml.rul_eval results results` → `rul_config_v1.json`, `rul_eval_report.json`, `rul_ims.png` |
 | `spandan_ml/pipelines.py` | The two end-to-end runs (also a CLI: `python -m spandan_ml.pipelines cwru <root> <out>`) |
 | `tests/` | Loaders and pipelines on small fake datasets laid out like the Kaggle mirrors |
 

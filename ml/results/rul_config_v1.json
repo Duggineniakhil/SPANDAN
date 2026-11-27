@@ -1,0 +1,26 @@
+{
+  "version": "rul-loglinear-v1",
+  "failure_ratios": [
+    3.279,
+    2.747,
+    5.974,
+    6.905
+  ],
+  "onset_ratio": 1.5,
+  "onset_points": 6,
+  "smooth_points": 6,
+  "min_points": 12,
+  "min_r2": 0.6,
+  "fit_days": null,
+  "monotone": true,
+  "block": 6,
+  "calibration": null,
+  "n_boot": 400,
+  "quantiles": [
+    0.1,
+    0.9
+  ],
+  "max_days": 90.0,
+  "indicator": "rms_y / baseline median rms_y",
+  "trained_on": "NASA IMS failed bearings (4)"
+}
