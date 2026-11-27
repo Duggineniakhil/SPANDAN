@@ -55,16 +55,23 @@ def check_server_rule(db: Session, machine: Machine) -> tuple[AnomalyEvent, bool
     return open_event(db, machine, rows[-1].ts, max(r.anomaly_score for r in rows), source="server")
 
 
-def plan_in_background(event_id: uuid.UUID) -> None:
-    """Run the coordinator agent for an event in its own DB session (FastAPI background task)."""
+def plan_in_background(event_id: uuid.UUID, owner_request: str | None = None) -> None:
+    """Run the coordinator agent for an event in its own DB session (FastAPI background task),
+    then pre-generate the new plan's voice note."""
     from app.agent.planner import run_planner
     from app.db import SessionLocal
 
     with SessionLocal() as db:
         try:
-            run_planner(db, event_id)
+            result = run_planner(db, event_id, owner_request=owner_request)
         except Exception:  # never let a background failure go unnoticed
             log.exception("planner crashed for event %s", event_id)
             db.rollback()
             audit(db, actor="system", action="agent_crashed", entity="anomaly_event", entity_id=event_id)
             db.commit()
+            return
+    if result.plan_id is not None:
+        # TTS as soon as the rules accept the plan, so the note is ready when the owner opens it
+        from app.voice.notes import prepare_note_in_background
+
+        prepare_note_in_background(result.plan_id)

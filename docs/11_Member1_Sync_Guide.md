@@ -12,7 +12,8 @@ must send and read to plug into it, and a sensible order to build in.
 | Sandbox dealers/mechanics + coordinator agent (M2-08 – M2-12) | ✅ Groq + Gemini fallback, writes the plan and the owner's message in Kannada/Hindi |
 | Approval engine (M2-13 – M2-18) | ✅ owner approve/reject (only from the registered number), executor, 24 h reminder, 48 h expiry, owner messages |
 | Diagnosis + RUL (M2-19 – M2-26) | ✅ trained, evaluated and live: every alert is diagnosed from raw windows and gets days-left |
-| Voice (Gnani), job card, false alarm (M2-27 – M2-33) | ⏳ not built yet |
+| Voice (Gnani) (M2-27 – M2-31) | ✅ voice note out, spoken reply in, re-plan on a request |
+| Job card, false alarm (M2-32, M2-33) | ⏳ not built yet |
 | **Android app (all M1 tasks)** | ❌ **nothing in the repo yet** (no `android/` folder, no commits from Member 1) |
 
 **The web app (`frontend/`) already does the phone's job in a browser**, so it is a working reference for
@@ -65,8 +66,16 @@ Sync the queued rows first. Offline: send the SMS (M1-19), keep the report, send
   was lost, `replanning: true`.
 - Inbox / notifications: `GET /api/v1/owners/{id}/messages` (plan, reminder, booking, expiry … already in the owner's language).
 
+### Voice (M1-24, M1-25), live now
+- **Play:** `GET /api/v1/plans/{id}/voice-note` → OGG/Opus (ExoPlayer/MediaPlayer play it). 503 = no voice: show `voice_script.text`.
+- **Reply:** record ≤ 10 s (MediaRecorder, OGG/Opus or AAC/M4A), then `POST /api/v1/plans/{id}/voice-reply` multipart
+  `audio` + `from_phone` (the SIM number). Play `say.audio_url` and show `say.text`. `action`:
+  `approved`/`rejected` → refresh the card; `replanning` → a new plan arrives (poll as usual); `reask` → record again;
+  `use_buttons` or any 503 → keep the Approve/Reject buttons (always keep them visible anyway).
+- The phone never holds the Gnani key. Reference: `frontend/src/components/VoicePanel.tsx`.
+
 ### Coming next from Member 2 (build the screens, wire when ready)
-`GET /plans/{id}/voice-note`, `POST /plans/{id}/voice-reply` (M1-24, M1-25), `POST /jobs/{id}/job-card` (M1-27),
+`POST /jobs/{id}/job-card` (M1-27),
 `POST /alerts/{id}/false-alarm` (M1-26).
 
 ## 3. Suggested order for Member 1

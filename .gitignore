@@ -15,3 +15,6 @@ ml/data/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Generated voice notes and owner recordings
+backend/var/

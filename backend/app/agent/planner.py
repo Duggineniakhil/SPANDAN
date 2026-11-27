@@ -34,9 +34,10 @@ class _Stop(Exception):
         self.reason = reason
 
 
-def _run_once(ctx: AgentContext, provider: Provider, max_calls: int, deadline: float) -> int:
+def _run_once(ctx: AgentContext, provider: Provider, max_calls: int, deadline: float,
+              owner_request: str | None = None) -> int:
     """One attempt with one provider. Returns the number of tool calls; raises _Stop or ProviderError."""
-    session = provider.start(SYSTEM_PROMPT, TOOL_DEFS, user_message(str(ctx.event.id)))
+    session = provider.start(SYSTEM_PROMPT, TOOL_DEFS, user_message(str(ctx.event.id), owner_request))
     results: list[ToolResult] | None = None
     calls = 0
     nudged = False
@@ -72,7 +73,8 @@ def _run_once(ctx: AgentContext, provider: Provider, max_calls: int, deadline: f
             return calls
 
 
-def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | None = None) -> PlannerResult:
+def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | None = None,
+                owner_request: str | None = None) -> PlannerResult:
     settings = get_settings()
     event = db.get(AnomalyEvent, event_id)
     if event is None:
@@ -103,9 +105,9 @@ def run_planner(db: Session, event_id: uuid.UUID, providers: list[Provider] | No
     for provider in providers:
         ctx = AgentContext(db=db, event=event, machine=machine, owner=owner, diagnosis=diagnosis)
         audit(db, actor="agent", action="agent_started", entity="anomaly_event", entity_id=event.id,
-              details={"provider": provider.name})
+              details={"provider": provider.name, **({"owner_request": owner_request} if owner_request else {})})
         try:
-            calls = _run_once(ctx, provider, settings.agent_max_tool_calls, deadline)
+            calls = _run_once(ctx, provider, settings.agent_max_tool_calls, deadline, owner_request)
             total_calls += calls
             audit(db, actor="agent", action="plan_submitted", entity="plan", entity_id=ctx.plan_id,
                   details={"provider": provider.name, "tool_calls": calls})

@@ -34,6 +34,24 @@ class Settings(BaseSettings):
     reading_interval_min: float = 1.0  # one reading per minute on the phone (the web demo runs faster)
     raw_windows_keep: int = 12         # raw windows kept per machine and kind
 
+    # Voice (M2-27 – M2-31): Gnani TTS for the plan's voice note, STT for the owner's spoken reply.
+    # No key = no voice; the owner reads the text and taps Approve/Reject.
+    gnani_api_key: str = ""
+    gnani_tts_url: str = "https://api.vachana.ai/api/v1/tts/inference"
+    gnani_stt_url: str = "https://api.vachana.ai/stt/v3"
+    gnani_tts_model: str = "timbre-v3.0"
+    gnani_stt_model: str = "prisma-v3.0"
+    # v3.0 voices speak every language; these sounded clear in our Kannada/Hindi tests
+    gnani_voice_kn: str = "Shruthi"
+    gnani_voice_hi: str = "Shivani"
+    gnani_voice_en: str = "Shruthi"
+    voice_timeout_s: float = 20       # per Gnani call; on timeout the owner gets text + buttons
+    voice_dir: str = "var/voice"      # generated notes and recorded replies (relative to backend/)
+    voice_max_reply_bytes: int = 5_000_000
+    voice_max_reply_s: float = 30     # Gnani STT limit
+    voice_reask_max: int = 2          # unclear replies re-asked this many times, then tap buttons
+    ffmpeg_path: str = "ffmpeg"
+
     # Anomaly rule on the server (backup for the phone's own alert)
     server_alert_consecutive: int = 3
 

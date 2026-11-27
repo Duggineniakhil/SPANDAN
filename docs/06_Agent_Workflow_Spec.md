@@ -106,6 +106,16 @@ Intent classifier (rules first, LLM only as fallback):
 - **Cache + fallback:** pre-generate fixed phrases (greetings, "please reply yes or no", "plan approved") and 2–3 complete demo voice notes; store in `backend/app/voice/cache/`. On Gnani error/timeout (> 15 s) → use cached audio or send text + tap buttons.
 - **Privacy:** the owner's voice is sent to Gnani; this is stated in the consent screen at setup. Store only the transcript and a reference to the audio in the audit log.
 
+**As built (27 Nov 2026, `backend/app/voice/`).** Checked live: Kannada and Hindi TTS (`timbre-v3.0`, Shruthi / Shivani)
+and STT (`prisma-v3.0`). A ~300-character script becomes a 25–35 s OGG/Opus note in about 5 s, and STT takes about 1 s.
+Digits and ₹ amounts are spoken correctly, so the agent keeps writing numbers as digits. Gnani returns OGG directly;
+ffmpeg is only used for the owner's recordings (browser WebM → 16 kHz WAV). Two changes from the plan above:
+- **Keywords decide only short replies (≤ 4 words).** Longer ones ("ಹೌದು, ಆದರೆ ನಾಳೆ ಬೆಳಿಗ್ಗೆ") go to the LLM, so a "yes, but…" is never taken as a plain yes.
+- **A request cancels the current plan** (the slot is freed). The agent then re-plans with the owner's words in its prompt.
+
+Live run: "yes, but have the mechanic come tomorrow morning" → `question` → a new plan for 09:00 the next day →
+a mumble → `reask` → "ಹೌದು" → approved and booked (`decided_via=voice`).
+
 ## 7. LLM configuration
 
 - **Providers:** Groq (`openai/gpt-oss-120b`) and Google Gemini (`gemini-3.5-flash-lite`), behind one provider-neutral wrapper (`backend/app/agent/llm.py`). Our backend runs the tool loop (`backend/app/agent/planner.py`).

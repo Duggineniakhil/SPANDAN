@@ -13,6 +13,10 @@ os.environ["API_TOKEN"] = "test-token"
 # Tests never call real LLMs: no keys, no automatic planning.
 os.environ["GEMINI_API_KEY"] = ""
 os.environ["GROQ_API_KEY"] = ""
+# ...or Gnani; voice tests use a fake provider and a temporary folder.
+os.environ["GNANI_API_KEY"] = ""
+import tempfile  # noqa: E402
+os.environ["VOICE_DIR"] = tempfile.mkdtemp(prefix="spandan-voice-")
 os.environ["AGENT_AUTO_PLAN"] = "false"
 os.environ["APPROVAL_SWEEP_INTERVAL_S"] = "0"
 

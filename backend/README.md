@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-31 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -50,6 +50,9 @@ Tests use the `spandan_test` database and wipe it between tests.
 | POST | `/api/v1/plans/{id}/decision` | Owner approve/reject; only from the owner's number (403), only while pending (409); approval runs the sandbox executor |
 | GET | `/api/v1/owners/{id}/messages` | Owner inbox (kn/hi/en) |
 | POST | `/api/v1/approval/sweep` | Reminders (24 h) and expiry (48 h) now; also runs every `APPROVAL_SWEEP_INTERVAL_S` |
+| GET | `/api/v1/plans/{id}/voice-note` | The plan as an OGG/Opus voice note (Gnani TTS); 503 = no voice, show the text |
+| POST | `/api/v1/plans/{id}/voice-reply` | Multipart `audio` + `from_phone` → STT → intent → approve / reject / re-plan / ask again |
+| GET | `/api/v1/voice/phrases/{lang}/{name}` | Cached fixed phrases (`reask`, `use_buttons`, `approved`, `rejected`, `replanning`) |
 | POST | `/api/v1/sim/reset` | Recreate sandbox dealers, parts, mechanics, calendars |
 | GET | `/api/v1/sim/messages?to_kind=` | What the sandbox dealers / mechanics were sent |
 
@@ -72,6 +75,23 @@ happens with the analytics worker (M2-26), which needs raw windows from the repl
 `app/approval/`: state machine, owner decision, executor, reminder/expiry sweep and message templates
 (doc 06 §5). The LLM never approves, books or pays. Silence never approves: plans expire after 48 h.
 The Kannada/Hindi templates in `messages.py` still need a native speaker's check.
+
+## Voice (Gnani)
+
+Set `GNANI_API_KEY` (vachana.ai) in `.env`; without it there is no voice and the owner reads the text and taps.
+ffmpeg must be on the PATH to accept browser/phone recordings (WebM, OGG, M4A...); only WAV works without it.
+
+- `app/voice/provider.py`: `VoiceProvider` (`tts`, `stt`). `gnani.py`: the adapter (TTS `timbre-v3.0`, voices
+  Shruthi (kn) / Shivani (hi); STT `prisma-v3.0`), retries the "one request at a time" 429.
+- `notes.py`: the plan's voice note, generated right after planning and cached by text in `VOICE_DIR` (`var/voice/`, gitignored).
+- `phrases.py` + `cache/`: fixed phrases in kn/hi/en, committed. Regenerate: `.venv/Scripts/python -m app.voice.phrases --force`.
+- `intent.py`: keywords for short replies; one LLM call (Groq/Gemini) for longer or mixed ones; doubtful = `unclear`, never a guessed yes.
+- `reply.py`: checks the number and the plan state **before** any audio leaves the server; stores the transcript and a
+  reference to the recording in the audit log; `unclear` is asked again twice, then the owner is sent to the buttons;
+  a request ("can the mechanic come tomorrow morning?") cancels the plan and the agent re-plans with those words.
+
+Measured live (27 Nov 2026): a ~300-character Kannada script → 25–35 s note in about 5 s; STT about 1 s;
+digits and ₹ amounts are read correctly, so scripts keep digits.
 
 ## Notes
 - 15 tables: the 13 from doc 07 plus `quotes` and `messages` (migrations `0837ce1719ef`, `a6436a90e3ba`, `de4177445205`). Location is lat/lng floats, not PostGIS.

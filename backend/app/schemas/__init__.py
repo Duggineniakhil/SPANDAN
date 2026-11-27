@@ -296,3 +296,21 @@ class RawWindowsIn(StrictModel):
 
 class RawWindowsOut(BaseModel):
     stored: int
+
+
+class SpokenOut(BaseModel):
+    """What the app says back: text in the owner's language, plus cached audio if there is any."""
+    lang: str
+    text: str
+    audio_url: str | None = None
+
+
+class VoiceReplyOut(BaseModel):
+    transcript: str
+    intent: Literal["approve", "reject", "question", "unclear"]
+    intent_source: str  # keywords | llm | empty
+    action: Literal["approved", "rejected", "replanning", "reask", "use_buttons"]
+    attempt: int
+    question: str | None = None
+    decision: DecisionOut | None = None  # for approve/reject
+    say: SpokenOut

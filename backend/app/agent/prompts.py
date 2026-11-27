@@ -26,5 +26,10 @@ voice_script (what the owner hears as a voice note):
 After submit_plan succeeds, stop."""
 
 
-def user_message(event_id: str) -> str:
-    return f"Plan the repair for anomaly event {event_id}. Start with get_machine_context."
+def user_message(event_id: str, owner_request: str | None = None) -> str:
+    msg = f"Plan the repair for anomaly event {event_id}. Start with get_machine_context."
+    if owner_request:
+        # the owner's own words from their voice reply to the previous plan (M2-31)
+        msg += ("\n\nThe owner did not accept the previous plan and asked for this change: "
+                f"«{owner_request[:300]}». Follow it if the rules allow; if not, explain why in the voice_script.")
+    return msg

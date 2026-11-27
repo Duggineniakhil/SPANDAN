@@ -19,7 +19,8 @@ An injected bearing fault, start to finish, in the web app:
 2. The cloud diagnoses **bearing outer-race wear**. The evidence: an envelope peak at 172 Hz (BPFO), 8.6× the noise floor, with harmonics.
 3. The cloud estimates days left from the wear trend.
 4. The agent (Groq `gpt-oss-120b`, Gemini as fallback) compares dealer quotes and finds a mechanic slot. It sends the owner a ₹1,630 plan in Kannada.
-5. The owner taps **Approve**. Only their registered number is accepted.
+5. The owner hears it as a voice note and says **ಹೌದು** (or taps **Approve**). Only their registered number is accepted.
+   A reply like "yes, but have the mechanic come tomorrow morning" makes the agent re-plan with that request.
 6. The mechanic is booked and the dealer order confirmed; the owner pays at pickup.
 
 <table>
@@ -54,7 +55,7 @@ flowchart LR
 | Sandbox | ✅ | 6 dealers with messy multilingual replies (one tries a prompt injection), 4 mechanics with calendars |
 | Web app | ✅ | Stands in for the phone: simulated sensor, detector, offline queue, plan card + approve |
 | Android app | ⏳ | Member 1 ([sync guide](docs/11_Member1_Sync_Guide.md)) |
-| Voice (Gnani STT/TTS) | ⏳ | Voice note out, spoken yes/no back |
+| Voice (Gnani STT/TTS) | ✅ | Plan as a Kannada/Hindi voice note; spoken reply → approve, reject, or "can it be tomorrow?" → new plan; unclear → asked again, then buttons |
 | Job card, false alarm, replay tool, dashboard | ⏳ | |
 | Sensor hardware (ESP32 + ADXL345) | ⏳ | After the software; the replay input uses the same format |
 
@@ -69,7 +70,7 @@ The splits never mix windows from one recording or bearing across train and test
 (only 4 IMS failures; resampling to 3.2 kHz costs accuracy): [doc 05](docs/05_ML_Models_Spec.md), and the
 [confusion matrix](ml/results/confusion_leave_one_load_out.png) and [RUL plot](ml/results/rul_ims.png).
 
-Tests: 166 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
+Tests: 199 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
 
 ## Safety rules the code enforces
 - **The LLM proposes, plain code disposes.** The agent has no tool that buys, books or pays. Prices come from stored quotes, never from the model.
@@ -85,7 +86,7 @@ Needs Docker, Python 3.11+ and Node 20+.
 ```bash
 # backend
 cd backend
-cp .env.example .env            # set API_TOKEN; GROQ_API_KEY and/or GEMINI_API_KEY for the agent
+cp .env.example .env            # set API_TOKEN; GROQ_API_KEY and/or GEMINI_API_KEY for the agent, GNANI_API_KEY for voice (needs ffmpeg)
 docker compose up -d            # Postgres on localhost:5433
 python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt
 .venv/Scripts/alembic upgrade head

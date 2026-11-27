@@ -6,6 +6,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, CalendarClock, Check, MessageSquare, Package, RefreshCw, ShieldCheck, Stethoscope, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import VoicePanel from "./VoicePanel";
 import { api, type EventDetail, type Health, type Message, type Owner, type Plan, type PlanAction } from "../lib/api";
 
 const POLL_MS = 3000;
@@ -129,7 +130,7 @@ export default function RepairPanel({ machineId, owner }: { machineId: string; o
           <div className="plan-col">
             <AnimatePresence mode="wait">
               {plan ? (
-                <PlanCard key={plan.id + plan.state} plan={plan} owner={owner} busy={busy} onDecide={decide}
+                <PlanCard key={plan.id + plan.state} plan={plan} owner={owner} busy={busy} onDecide={decide} onVoice={() => void refresh()}
                   failBy={event.diagnosis?.rul_status === "ok" && event.diagnosis.rul_days_low != null
                     ? Date.now() + event.diagnosis.rul_days_low * 86_400_000 : null} />
               ) : couldNotPlan ? (
@@ -195,8 +196,9 @@ function Diagnosis({ event }: { event: EventDetail }) {
   );
 }
 
-function PlanCard({ plan, owner, busy, onDecide, failBy }: {
-  plan: Plan; owner: Owner; busy: string | null; onDecide: (d: "approve" | "reject") => void; failBy: number | null;
+function PlanCard({ plan, owner, busy, onDecide, onVoice, failBy }: {
+  plan: Plan; owner: Owner; busy: string | null; onDecide: (d: "approve" | "reject") => void; onVoice: () => void;
+  failBy: number | null;
 }) {
   const p = plan.plan;
   const part = p.actions.find((a): a is Extract<PlanAction, { type: "buy_part" }> => a.type === "buy_part");
@@ -233,6 +235,7 @@ function PlanCard({ plan, owner, busy, onDecide, failBy }: {
       )}
       {pending ? (
         <>
+          <VoicePanel planId={plan.id} phone={owner.phone} lang={plan.voice_script?.lang ?? owner.language} onDone={onVoice} />
           <div className="plan-buttons">
             <button className="btn btn-primary" disabled={busy !== null} onClick={() => onDecide("approve")}><Check size={16} /> Approve</button>
             <button className="btn btn-ghost" disabled={busy !== null} onClick={() => onDecide("reject")}><X size={16} /> Reject</button>

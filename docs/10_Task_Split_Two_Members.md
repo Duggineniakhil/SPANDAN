@@ -107,11 +107,11 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-26** Analytics worker: on anomaly event → diagnosis + RUL → `diagnoses` row → trigger agent (`app/analytics/worker.py`: raw windows → rules + CWRU classifier; live RUL from `rms_y`, refreshed on every upload)
 
 ### Week 4–5 · Voice
-- [ ] **M2-27** `VoiceProvider` interface + Gnani adapter: TTS and STT for kn + hi, key from `.env`, timeout + error handling
-- [ ] **M2-28** Audio conversion (ffmpeg) to/from Gnani formats; pre-generated phrase cache + demo voice notes; fallback to cache or text + tap on API failure
-- [ ] **M2-29** Intent detection: keyword rules first, LLM structured-output fallback (`approve / reject / question / unclear`), re-ask up to 2 times
-- [ ] **M2-30** `/plans/{id}/voice-note` and `/plans/{id}/voice-reply` endpoints
-- [ ] **M2-31** "Question" intent → agent re-plans with the owner's constraint
+- [x] **M2-27** `VoiceProvider` interface + Gnani adapter: TTS and STT for kn + hi, key from `.env`, timeout + error handling
+- [x] **M2-28** Audio conversion (ffmpeg) to/from Gnani formats; pre-generated phrase cache + demo voice notes; fallback to cache or text + tap on API failure
+- [x] **M2-29** Intent detection: keyword rules first, LLM structured-output fallback (`approve / reject / question / unclear`), re-ask up to 2 times (`app/voice/`; live-checked with Gnani + Groq/Gemini on 27 Nov 2026)
+- [x] **M2-30** `/plans/{id}/voice-note` and `/plans/{id}/voice-reply` endpoints
+- [x] **M2-31** "Question" intent → agent re-plans with the owner's constraint
 
 ### Week 5–6 · Feedback, replay, dashboard
 - [ ] **M2-32** Job-card endpoint → `feedback_labels`, close event, trigger new baseline

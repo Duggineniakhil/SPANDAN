@@ -119,6 +119,17 @@ export interface Decision {
   replanning: boolean;
 }
 
+export interface VoiceReply {
+  transcript: string;
+  intent: "approve" | "reject" | "question" | "unclear";
+  intent_source: string;
+  action: "approved" | "rejected" | "replanning" | "reask" | "use_buttons";
+  attempt: number;
+  question: string | null;
+  decision: Decision | null;
+  say: { lang: string; text: string; audio_url: string | null };
+}
+
 export interface PlannerResult {
   status: "planned" | "failed" | "skipped";
   plan_id: string | null;
@@ -177,6 +188,17 @@ export const api = {
   decide: (planId: string, decision: "approve" | "reject", from_phone: string) =>
     post<Decision>(`/api/v1/plans/${planId}/decision`, { decision, channel: "tap", from_phone }),
   ownerMessages: (ownerId: string) => request<Message[]>(`/api/v1/owners/${ownerId}/messages`),
+  // Voice (Gnani on the server): the note is an OGG/Opus file; the reply is the owner's recording.
+  voiceNoteUrl: (planId: string) => `/api/v1/plans/${planId}/voice-note`,
+  voiceReply: async (planId: string, audio: Blob, from_phone: string): Promise<VoiceReply> => {
+    const form = new FormData();
+    form.append("audio", audio, audio.type.includes("ogg") ? "reply.ogg" : "reply.webm");
+    form.append("from_phone", from_phone);
+    const res = await fetch(`/api/v1/plans/${planId}/voice-reply`, { method: "POST", body: form });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : res.statusText);
+    return body as VoiceReply;
+  },
 };
 
 /** IDs of the machine set up in this browser. */

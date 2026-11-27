@@ -39,9 +39,10 @@ def expire(db: Session, plan: Plan, owner: Owner, *, actor: str = "system") -> N
     notify_owner(db, owner, "expired", plan=plan)
 
 
-def decide(db: Session, plan_id: uuid.UUID, *, decision: str, channel: str, from_phone: str,
-           transcript: str | None = None) -> DecisionOutcome:
-    """Apply the owner's decision. Commits. Raises DecisionError (audited) when it is refused."""
+def check_decidable(db: Session, plan_id: uuid.UUID, *, decision: str, channel: str,
+                    from_phone: str) -> tuple[Plan, Owner]:
+    """The plan (locked) and owner, if this number may decide it now. Otherwise raises DecisionError
+    (audited, committed): 404 no plan, 403 not the owner's number, 409 not pending or expired."""
     plan = db.get(Plan, plan_id, with_for_update=True)
     if plan is None:
         raise DecisionError(404, "Plan not found")
@@ -57,14 +58,20 @@ def decide(db: Session, plan_id: uuid.UUID, *, decision: str, channel: str, from
         # never echo the registered number back
         raise refuse(403, "Decision not accepted: it did not come from the owner's registered number",
                      from_phone_last4=re.sub(r"\D", "", from_phone or "")[-4:])
-    now = now_utc()
-    if plan.state == "pending" and plan.expires_at is not None and now >= plan.expires_at:
+    if plan.state == "pending" and plan.expires_at is not None and now_utc() >= plan.expires_at:
         expire(db, plan, owner)
         db.commit()
         raise refuse(409, "The plan has expired; ask for a new plan")
     if plan.state != "pending":
         raise refuse(409, f"The plan is '{plan.state}', not waiting for a decision")
+    return plan, owner
 
+
+def decide(db: Session, plan_id: uuid.UUID, *, decision: str, channel: str, from_phone: str,
+           transcript: str | None = None) -> DecisionOutcome:
+    """Apply the owner's decision. Commits. Raises DecisionError (audited) when it is refused."""
+    plan, owner = check_decidable(db, plan_id, decision=decision, channel=channel, from_phone=from_phone)
+    now = now_utc()
     plan.decided_at, plan.decided_via = now, channel
     details = {"channel": channel, **({"transcript": transcript} if transcript else {})}
     if decision == "reject":
