@@ -129,6 +129,8 @@ class Dealer(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     name: Mapped[str] = mapped_column(String(120))
+    # Sandbox: how this simulated dealer writes replies (see app/sim)
+    reply_style: Mapped[str] = mapped_column(String(20), default="kn_en")
     phone: Mapped[str] = mapped_column(String(20))
     lat: Mapped[float | None] = mapped_column(Float)
     lng: Mapped[float | None] = mapped_column(Float)
@@ -172,6 +174,32 @@ class MechanicSlot(Base):
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(10), default="free")
+    # While a plan waits for the owner, its slot is held for that anomaly event
+    held_for_event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("anomaly_events.id"))
+    held_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+QUOTE_STATUSES = ("received", "unavailable")
+
+
+class Quote(Base):
+    """A dealer's answer to a quote request. The price stored here is the source of truth;
+    the agent only refers to quotes by id and can't change the price."""
+
+    __tablename__ = "quotes"
+    __table_args__ = (CheckConstraint(_in("status", QUOTE_STATUSES), name="status_valid"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("anomaly_events.id"), index=True)
+    dealer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("dealers.id"))
+    part_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parts_catalog.id"))
+    part_code: Mapped[str] = mapped_column(String(40))
+    qty: Mapped[int] = mapped_column(Integer)
+    unit_price_inr: Mapped[int | None] = mapped_column(Integer)
+    lead_time_days: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(12))
+    dealer_reply: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
 
 
 class Plan(Base):

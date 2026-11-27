@@ -71,20 +71,20 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 ## Member 2 — Cloud & Intelligence
 
 ### Week 1–2 · Backend foundation
-- [ ] **M2-01** FastAPI app + PostgreSQL (docker compose), SQLAlchemy models, Alembic migrations for all tables (doc 07 §2)
-- [ ] **M2-02** Endpoints: owners, machines, baseline start/complete
-- [ ] **M2-03** `/telemetry/batch` with validation, dedupe by `row_id`, `{accepted, duplicates, rejected}` response
+- [x] **M2-01** FastAPI app + PostgreSQL (docker compose), SQLAlchemy models, Alembic migrations for all tables (doc 07 §2)
+- [x] **M2-02** Endpoints: owners, machines, baseline start/complete
+- [x] **M2-03** `/telemetry/batch` with validation, dedupe by `row_id`, `{accepted, duplicates, rejected}` response
 - [ ] **M2-04** Telemetry/health read endpoints for dashboard
-- [ ] **M2-05** Append-only `audit_log` helper used by every write path
-- [ ] **M2-06** Fake-telemetry script (posts feature rows, normal → anomalous) for testing without M1
-- [ ] **M2-07** Server-side anomaly rule as backup + `anomaly_events` creation
+- [x] **M2-05** Append-only `audit_log` helper used by every write path
+- [x] **M2-06** ~~Fake-telemetry script~~ replaced by the web app (simulated sensor + gateway) (posts feature rows, normal → anomalous) for testing without M1
+- [x] **M2-07** Server-side anomaly rule as backup + `anomaly_events` creation
 
 ### Week 2–3 · Simulator + agent v0
-- [ ] **M2-08** Sandbox simulator: dealers + parts catalog + mechanics + weekly slot calendars; `/sim/reset`
-- [ ] **M2-09** Messy multilingual dealer replies (kn/hi/en mix) and one prompt-injection reply
-- [ ] **M2-10** Agent tools: `get_machine_context`, `search_parts` (rule-ranked), `request_quote`, `find_repair_slots` (rule-ranked: idle windows × free slots × RUL deadline), `check_mechanic_availability`, `submit_plan`, all with strict JSON schemas
-- [ ] **M2-11** Agent loop (Anthropic Messages API, `claude-opus-5-5`, adaptive thinking, refusal handling, 12-call cap, 90 s timeout, template fallback)
-- [ ] **M2-12** System prompt + voice-script instructions (doc 06 §7)
+- [x] **M2-08** Sandbox simulator: dealers + parts catalog + mechanics + weekly slot calendars; `/sim/reset`
+- [x] **M2-09** Messy multilingual dealer replies (kn/hi/en mix) and one prompt-injection reply
+- [x] **M2-10** Agent tools: `get_machine_context`, `search_parts` (rule-ranked), `request_quote`, `find_repair_slots` (rule-ranked: idle windows × free slots × RUL deadline), `check_mechanic_availability`, `submit_plan`, all with strict JSON schemas
+- [x] **M2-11** Agent loop (Groq + Gemini fallback, provider-neutral wrapper, 12-call cap, 90 s timeout, fallback on any failure)
+- [x] **M2-12** System prompt + voice-script instructions (doc 06 §7)
 
 ### Week 3–4 · Rules & approval engine
 - [ ] **M2-13** Plan validation: spending limit, quote/slot IDs exist and are fresh, prices match DB, slot before RUL low bound and inside idle window, allowed action types only, voice-script language/length

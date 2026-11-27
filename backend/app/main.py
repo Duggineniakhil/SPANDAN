@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api import machines, owners, telemetry
+from app.api import events, machines, owners, sim, telemetry
 from app.security import require_token
 
 app = FastAPI(title="SPANDAN API", version="0.1.0")
@@ -20,6 +20,8 @@ api = APIRouter(prefix="/api/v1", dependencies=[Depends(require_token)])
 api.include_router(owners.router)
 api.include_router(machines.router)
 api.include_router(telemetry.router)
+api.include_router(events.router)
+api.include_router(sim.router)
 app.include_router(api)
 
 

@@ -45,7 +45,7 @@
 | C3 | Ingestion API | Cloud VM / laptop for demo | Python 3.11, FastAPI, Pydantic, SQLAlchemy 2, Alembic | Backend |
 | C4 | Database | Same host | PostgreSQL 16 (TimescaleDB extension optional) | Storage |
 | C5 | Analytics worker | Same host | Python, NumPy/SciPy, scikit-learn, joblib; triggered by event | ML |
-| C6 | Coordinator agent | Same host | Python, Anthropic SDK (`anthropic`), Messages API with tool use | LLM (only one) |
+| C6 | Coordinator agent | Same host | Python, Groq (`openai/gpt-oss-120b`) with Gemini fallback, own tool-use loop | LLM (only one) |
 | C7 | Approval engine | Same host | Python rules module + state machine, APScheduler for reminders | Rules |
 | C8 | Voice service | Same host (no GPU) | **Gnani API** for STT + TTS (Kannada, Hindi) behind a provider-neutral adapter; ffmpeg for audio conversion; cached pre-generated phrases as fallback | Integration |
 | C9 | Messaging adapter | Same host | Sandbox: in-app + simulated inbox; P1: Twilio/Meta WhatsApp sandbox | Integration |
@@ -59,8 +59,8 @@
 | What leaves the phone? | Feature rows + scores, not raw windows (raw only for opt-in debug recording during data collection) | Bandwidth and privacy |
 | Diagnosis/RUL location | Cloud | Needs longer history + heavier models; easy to update |
 | Voice provider | Gnani API (STT + TTS) behind a `VoiceProvider` interface | Team already has credits; Indian provider built for Indic, code-mixed, noisy speech; no GPU; swappable later |
-| Agent loop | Our FastAPI backend drives a Messages API tool-use loop | The approval gate and spending limits must live in our code, not the model. (Anthropic Managed Agents is an alternative host for the loop, but keeping it in-process is simpler for a gated prototype.) |
-| LLM model | `claude-opus-5-5` (adaptive thinking, effort `medium`); server-side refusal fallback enabled | Default current model; one call per incident keeps cost tiny |
+| Agent loop | Our FastAPI backend drives the tool-use loop through a provider-neutral wrapper | The approval gate and spending limits must live in our code, not the model; providers can be swapped |
+| LLM model | Groq `openai/gpt-oss-120b` first, Gemini `gemini-3.5-flash-lite` as automatic fallback (order configurable) | Free tiers; Groq wrote correct Kannada/Hindi script in live tests; fallback covers outages and bad output |
 | Approvals | Deterministic rules, never the LLM | Safety and auditability |
 | External parties | Simulated directory + sandbox messaging | No real money / people in prototype |
 | Time series storage | Plain PostgreSQL table indexed on (machine_id, ts) | Enough for prototype volumes (1 row/min/machine) |
@@ -120,7 +120,7 @@ spandan/
 - **Voice:** Gnani API (cloud) for TTS and STT, so no GPU is needed. Only the backend calls Gnani; the key never goes into the Android app. Pre-generate fixed phrases and a few demo voice notes and keep them in the repo as a fallback if the API or network fails.
 - **Phone:** sideloaded APK; phone on a mount with charger beside the bench rig.
 - **Network:** phone and laptop on the same hotspot; demo the offline path by toggling mobile data.
-- **Secrets:** `ANTHROPIC_API_KEY`, `GNANI_API_KEY` (and any other Gnani credentials), Twilio keys in `.env` (never committed).
+- **Secrets:** `GROQ_API_KEY`, `GEMINI_API_KEY`, `GNANI_API_KEY` (and any other Gnani credentials), Twilio keys in `.env` (never committed).
 
 ## 7. Feature parity rule (important)
 

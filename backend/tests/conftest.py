@@ -10,6 +10,10 @@ from app.config import Settings
 _test_url = Settings().test_database_url
 os.environ["DATABASE_URL"] = _test_url
 os.environ["API_TOKEN"] = "test-token"
+# Tests never call real LLMs: no keys, no automatic planning.
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["GROQ_API_KEY"] = ""
+os.environ["AGENT_AUTO_PLAN"] = "false"
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402

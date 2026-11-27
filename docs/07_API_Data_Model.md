@@ -43,7 +43,11 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 ### Events, diagnosis, plans
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/events/anomaly` | Phone reports a confirmed anomaly (also auto-raised by server rule) |
+| POST | `/events/anomaly` | Phone reports a confirmed anomaly → 201 new (diagnosed, auto-planned) or 200 existing open event. The server also opens one after 3 readings over the threshold |
+| GET | `/events?machine_id=&open_only=` | Events for a machine |
+| GET | `/events/{id}` | Event with its diagnosis and plans |
+| POST | `/events/{id}/plan` | Run the coordinator agent now (synchronous) |
+| POST | `/sim/reset` | Recreate sandbox dealers, parts, mechanics and calendars |
 | GET | `/machines/{id}/diagnosis/latest` | Top-3 faults + RUL |
 | GET | `/plans/{id}` | Plan detail |
 | GET | `/owners/{id}/plans?state=pending` | Pending plans for app |
@@ -108,6 +112,14 @@ CREATE TABLE mechanics (id UUID PRIMARY KEY, name TEXT, phone TEXT, skills TEXT[
   location GEOGRAPHY(POINT), sandbox BOOL DEFAULT true);
 CREATE TABLE mechanic_slots (id UUID PRIMARY KEY, mechanic_id UUID REFERENCES mechanics(id),
   start_at TIMESTAMPTZ, end_at TIMESTAMPTZ, status TEXT DEFAULT 'free'); -- free|held|booked
+
+CREATE TABLE quotes (               -- dealer answers; the stored price is the source of truth
+  id UUID PRIMARY KEY, event_id UUID REFERENCES anomaly_events(id), dealer_id UUID REFERENCES dealers(id),
+  part_id UUID REFERENCES parts_catalog(id), part_code TEXT, qty INT, unit_price_inr INT NULL,
+  lead_time_days INT NULL, status TEXT, dealer_reply TEXT, created_at TIMESTAMPTZ DEFAULT now()
+);
+-- mechanic_slots also has held_for_event_id + held_until (slot held while a plan awaits approval)
+-- dealers also has reply_style (how the sandbox dealer writes)
 
 CREATE TABLE plans (
   id UUID PRIMARY KEY, event_id UUID REFERENCES anomaly_events(id), owner_id UUID REFERENCES owners(id),

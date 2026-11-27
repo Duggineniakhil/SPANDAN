@@ -120,3 +120,63 @@ class TelemetryBatchResult(BaseModel):
     accepted: int
     duplicates: int
     rejected: list[RejectedRow]
+
+
+# ---------- Anomaly events ----------
+
+class AnomalyEventIn(StrictModel):
+    machine_id: uuid.UUID
+    started_at: AwareDatetime
+    peak_score: float | None = Field(default=None, ge=0)
+
+
+class DiagnosisOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    faults: list[dict]
+    rul_days_low: float | None
+    rul_days_high: float | None
+    rul_status: str
+    model_versions: dict
+    created_at: datetime
+
+
+class PlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    event_id: uuid.UUID
+    owner_id: uuid.UUID
+    plan: dict
+    total_cost_inr: int
+    state: str
+    voice_script: dict | None
+    created_at: datetime
+    expires_at: datetime | None
+    decided_at: datetime | None
+
+
+class AnomalyEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    machine_id: uuid.UUID
+    started_at: datetime
+    peak_score: float | None
+    status: str
+    source: str
+    created_at: datetime
+
+
+class AnomalyEventDetail(AnomalyEventOut):
+    diagnosis: DiagnosisOut | None = None
+    plans: list[PlanOut] = []
+
+
+class PlannerResultOut(BaseModel):
+    status: Literal["planned", "failed", "skipped"]
+    plan_id: uuid.UUID | None = None
+    provider: str | None = None
+    reason: str | None = None
+    tool_calls: int = 0

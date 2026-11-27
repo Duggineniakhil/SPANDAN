@@ -1,12 +1,13 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.audit import audit
 from app.config import get_settings
 from app.db import get_db
+from app.events import check_server_rule, plan_in_background
 from app.models import Machine, Telemetry
 from app.schemas import RejectedRow, TelemetryBatch, TelemetryBatchResult
 
@@ -14,14 +15,15 @@ router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
 
 @router.post("/batch", response_model=TelemetryBatchResult)
-def upload_batch(batch: TelemetryBatch, db: Session = Depends(get_db)) -> TelemetryBatchResult:
+def upload_batch(batch: TelemetryBatch, background: BackgroundTasks, db: Session = Depends(get_db)) -> TelemetryBatchResult:
     """Idempotent upload of feature rows from the phone.
 
     - A whole malformed batch → 422 (the phone retries later).
     - Rows with an already-stored `row_id` count as duplicates (safe to resend).
     - Rows with an out-of-range timestamp are rejected individually.
     """
-    if db.get(Machine, batch.machine_id) is None:
+    machine = db.get(Machine, batch.machine_id)
+    if machine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Machine not found")
 
     settings = get_settings()
@@ -61,5 +63,8 @@ def upload_batch(batch: TelemetryBatch, db: Session = Depends(get_db)) -> Teleme
     audit(db, actor="device", action="telemetry_batch", entity="machine", entity_id=batch.machine_id,
           details={"device_id": batch.device_id, "accepted": accepted,
                    "duplicates": duplicates, "rejected": len(rejected)})
+    opened = check_server_rule(db, machine) if accepted else None
     db.commit()
+    if opened and opened[1] and settings.agent_auto_plan:
+        background.add_task(plan_in_background, opened[0].id)
     return TelemetryBatchResult(accepted=accepted, duplicates=duplicates, rejected=rejected)
