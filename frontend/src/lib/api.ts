@@ -35,6 +35,97 @@ export interface BatchResult {
   rejected: { row_id: string; reason: string }[];
 }
 
+export interface AnomalyEvent {
+  id: string;
+  machine_id: string;
+  started_at: string;
+  peak_score: number | null;
+  status: "open" | "diagnosed" | "planned" | "resolved" | "false_alarm";
+  source: string;
+  created_at: string;
+}
+
+export interface Fault {
+  fault: string;
+  confidence: number;
+  evidence: string;
+}
+
+export interface Diagnosis {
+  id: string;
+  faults: Fault[];
+  rul_days_low: number | null;
+  rul_days_high: number | null;
+  rul_status: string;
+  model_versions: Record<string, string>;
+  created_at: string;
+}
+
+export type PlanAction =
+  | { type: "buy_part"; dealer: string; dealer_id: string; quote_id: string; part_code: string; description: string; qty: number; unit_price_inr: number; price_inr: number; lead_time_days: number | null; payment: string }
+  | { type: "book_mechanic"; mechanic: string; mechanic_id: string; slot_id: string; start: string; end: string; rate_inr: number }
+  | { type: "schedule_downtime"; start: string; end: string };
+
+export interface Plan {
+  id: string;
+  event_id: string;
+  owner_id: string;
+  plan: {
+    fault: Fault & { code: string };
+    rul_days: { low: number | null; high: number | null; status: string };
+    actions: PlanAction[];
+    total_cost_inr: number;
+    summary_en: string;
+    voice_script: { lang: string; text: string };
+  };
+  total_cost_inr: number;
+  state: "draft" | "pending" | "approved" | "rejected" | "expired" | "executed" | "cancelled";
+  voice_script: { lang: string; text: string } | null;
+  created_at: string;
+  expires_at: string | null;
+  decided_at: string | null;
+  decided_via: string | null;
+}
+
+export interface EventDetail extends AnomalyEvent {
+  diagnosis: Diagnosis | null;
+  plans: Plan[];
+}
+
+export interface Health {
+  machine_id: string;
+  state: string;
+  open_event: AnomalyEvent | null;
+  pending_plan_id: string | null;
+  minutes_since_last_reading: number | null;
+  readings_24h: number;
+}
+
+export interface Message {
+  id: string;
+  kind: string;
+  lang: string;
+  text: string;
+  plan_id: string | null;
+  event_id: string | null;
+  created_at: string;
+}
+
+export interface Decision {
+  plan: Plan;
+  executed: boolean | null;
+  reason: string | null;
+  job_id: string | null;
+  replanning: boolean;
+}
+
+export interface PlannerResult {
+  status: "planned" | "failed" | "skipped";
+  plan_id: string | null;
+  provider: string | null;
+  reason: string | null;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -75,6 +166,15 @@ export const api = {
     post<Machine>(`/api/v1/machines/${id}/baseline/complete`, { anomaly_threshold, model_version }),
   uploadBatch: (machine_id: string, device_id: string, rows: TelemetryRow[]) =>
     post<BatchResult>("/api/v1/telemetry/batch", { machine_id, device_id, rows }),
+  // Cloud side: events, diagnosis, plans, approval (Member 2 backend)
+  reportAnomaly: (machine_id: string, started_at: string, peak_score: number) =>
+    post<AnomalyEvent>("/api/v1/events/anomaly", { machine_id, started_at, peak_score }),
+  getEvent: (id: string) => request<EventDetail>(`/api/v1/events/${id}`),
+  planEvent: (id: string) => post<PlannerResult>(`/api/v1/events/${id}/plan`),
+  machineHealth: (id: string) => request<Health>(`/api/v1/machines/${id}/health`),
+  decide: (planId: string, decision: "approve" | "reject", from_phone: string) =>
+    post<Decision>(`/api/v1/plans/${planId}/decision`, { decision, channel: "tap", from_phone }),
+  ownerMessages: (ownerId: string) => request<Message[]>(`/api/v1/owners/${ownerId}/messages`),
 };
 
 /** IDs of the machine set up in this browser. */

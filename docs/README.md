@@ -19,6 +19,7 @@ SPANDAN predicts breakdowns in small flour mills. A clip-on vibration sensor sen
 | 08 | [Test, Demo & Risk Plan](08_Test_Demo_Risk_Plan.md) | Testing, the demo script, metrics to report, risks |
 | 09 | [Roadmap](09_Roadmap.md) | Phase-by-phase build plan with tasks, owners and exit criteria |
 | 10 | [Task Split — Two Members](10_Task_Split_Two_Members.md) | Software-only development tasks (hardware deferred) for Member 1 (Edge & Detection) and Member 2 (Cloud & Intelligence) |
+| 11 | [Member 1 Sync Guide](11_Member1_Sync_Guide.md) | What the cloud already does, the exact API the phone must use, and the build order for Member 1 |
 
 ## Golden rules for the whole build
 

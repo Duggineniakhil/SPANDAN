@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { HealthRing, SpectrumChart, Waveform, healthColor, type Marker } from "../components/Charts";
-import { api, session, type Machine } from "../lib/api";
+import RepairPanel from "../components/RepairPanel";
+import { api, session, type Machine, type Owner } from "../lib/api";
 import { BASELINE_WINDOWS, Gateway, type GatewayState, type LogEntry } from "../lib/gateway";
 import { BPFO_RATIO, FAULT_LABELS, type FaultType } from "../lib/signal";
 
@@ -25,6 +26,7 @@ export default function Monitor() {
   const ids = session.get();
   const [params, setParams] = useSearchParams();
   const [machine, setMachine] = useState<Machine | null>(null);
+  const [owner, setOwner] = useState<Owner | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<GatewayState | null>(null);
   const gwRef = useRef<Gateway | null>(null);
@@ -34,6 +36,7 @@ export default function Monitor() {
     let gw: Gateway | null = null;
     let unsub = () => {};
     let cancelled = false; // StrictMode runs effects twice; ignore the stale request
+    api.getOwner(ids.ownerId).then((o) => !cancelled && setOwner(o)).catch(() => {});
     api.getMachine(ids.machineId).then((m) => {
       if (cancelled) return;
       setMachine(m);
@@ -125,7 +128,7 @@ export default function Monitor() {
             <div>
               <strong>Unusual vibration on {machine.name}.</strong>{" "}
               Biggest changes: {state.contributors.map((c) => c.name.replace(/_/g, " ")).join(", ")}.
-              <span className="muted"> Diagnosis and repair plan come from the cloud in the next build step.</span>
+              <span className="muted"> Sent to the cloud: diagnosis and a repair plan appear below.</span>
             </div>
           </motion.div>
         )}
@@ -182,6 +185,8 @@ export default function Monitor() {
             {state.duplicates > 0 && <span><b>{state.duplicates}</b> already stored</span>}
           </div>
         </section>
+
+        {owner && <RepairPanel machineId={machine.id} owner={owner} />}
 
         <section className="card chart-card wide">
           <div className="card-head"><h2>Anomaly score</h2><span className="legend"><i className="lg-score" /> score <i className="lg-thr" /> alert threshold</span></div>

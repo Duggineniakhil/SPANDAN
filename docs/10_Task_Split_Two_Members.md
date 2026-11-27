@@ -24,6 +24,8 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 
 ## Member 1 — Edge & Detection
 
+> Status and how to plug into the live backend: see **doc 11 (Member 1 Sync Guide)**. The web app in `frontend/` already does the phone's job in a browser and is a reference for M1-04/07/15–17/20/22/23.
+
 ### Week 1–2 · Data input + phone pipeline
 - [ ] **M1-01** Dataset converters: MIMII, CWRU and NASA IMS → C4 window files (resample to 3.2 kHz, 10 s windows, unit/session/label metadata)
 - [ ] **M1-02** Build replay sequences: normal → developing fault → failure, per unit, for testing and the end-to-end flow

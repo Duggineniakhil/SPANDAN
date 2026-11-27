@@ -66,6 +66,7 @@ export class Gateway {
   private smoothHealth: number | null = null;
   private logId = 0;
   private syncing = false;
+  private pendingReport: { startedAt: string; peak: number } | null = null;
 
   state: GatewayState;
 
@@ -151,7 +152,24 @@ export class Gateway {
   setOnline(online: boolean) {
     this.set({ online });
     this.log("info", online ? "Network back — syncing queued readings." : "Network off — readings are stored on the device.");
-    if (online) void this.sync();
+    if (online) void this.sync().then(() => this.reportAlert());
+  }
+
+  /** Tell the cloud about a confirmed alert (doc 07: POST /events/anomaly). Readings go first, so the
+   *  diagnosis sees them. Offline: kept and sent when the network is back. */
+  private async reportAlert() {
+    const r = this.pendingReport;
+    if (!r || !this.state.online) return;
+    await this.sync();
+    try {
+      const ev = await api.reportAnomaly(this.machineId, r.startedAt, r.peak);
+      this.pendingReport = null;
+      this.log("sync", ev.status === "diagnosed" || ev.status === "open"
+        ? "Alert sent to the cloud: diagnosing and preparing a repair plan…"
+        : `Alert sent to the cloud (already ${ev.status}).`);
+    } catch (e) {
+      this.log("error", `Alert not delivered, will retry: ${(e as Error).message}`);
+    }
   }
 
   private async tick() {
@@ -204,6 +222,8 @@ export class Gateway {
         const why = contributors.map((c) => c.name).join(", ");
         this.log("alert", `Unusual vibration for 3 readings in a row (score ${sc.toFixed(1)}). Biggest changes: ${why}.`);
         if (!s.online) this.log("alert", "No network: SMS alert sent to the owner (simulated).");
+        this.pendingReport = { startedAt: new Date(t).toISOString(), peak: sc };
+        void this.reportAlert();
       } else if (change === "cleared") {
         this.log("ok", "Vibration back to normal.");
       }
