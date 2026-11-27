@@ -134,3 +134,40 @@ def test_audit_for_machine_covers_the_whole_repair(client, machine, plan_id):  #
             "downtime_scheduled", "plan_executed"} <= actions
     health = client.get(f"/api/v1/machines/{machine['id']}/health").json()
     assert health["open_event"]["status"] == "planned" and health["pending_plan_id"] is None
+
+
+# ---------- judge dashboard (M2-35) ----------
+
+def test_fleet_shows_alert_fault_and_waiting_plan(client, owner, plan_id):  # noqa: F811
+    from tests.test_approval import decide
+
+    fleet = client.get("/api/v1/fleet").json()
+    assert len(fleet) == 1
+    m = fleet[0]
+    assert m["owner_name"] == "Ramesh" and m["owner_language"] == "kn" and m["state"] == "alert"
+    assert m["open_event_status"] == "planned" and m["top_fault"] == "bearing_outer"
+    assert m["pending_plan_id"] == str(plan_id) and m["health_index"] is not None
+    decide(client, plan_id)
+    assert client.get("/api/v1/fleet").json()[0]["pending_plan_id"] is None
+    assert client.get("/api/v1/fleet?limit=0").status_code == 422
+
+
+def test_stats_count_the_whole_story(client, plan_id):  # noqa: F811
+    from tests.test_approval import decide
+    from tests.test_feedback import card, mechanic_phone
+
+    s = client.get("/api/v1/stats").json()
+    assert (s["machines"], s["open_alerts"], s["alerts_total"], s["plans_pending"]) == (1, 1, 1, 1)
+    assert s["repairs_booked"] == 0 and s["diagnosis_checked"] == 0 and s["alert_to_plan_median_s"] >= 0
+    job_id = decide(client, plan_id).json()["job_id"]
+    card(client, job_id, mechanic_phone(uuid.UUID(job_id)))
+    s = client.get("/api/v1/stats").json()
+    assert (s["plans_pending"], s["repairs_booked"], s["repairs_done"]) == (0, 1, 1)
+    assert (s["diagnosis_checked"], s["diagnosis_correct"], s["tap_decisions"]) == (1, 1, 1)
+    assert s["open_alerts"] == 0 and s["monitoring"] == 0  # repaired machine is learning a new baseline
+
+
+def test_stats_on_an_empty_system(client):
+    s = client.get("/api/v1/stats").json()
+    assert s["machines"] == 0 and s["alert_to_plan_median_s"] is None
+    assert client.get("/api/v1/fleet").json() == []

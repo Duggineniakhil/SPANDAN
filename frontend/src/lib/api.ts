@@ -163,6 +163,58 @@ export interface VoiceReply {
   say: { lang: string; text: string; audio_url: string | null };
 }
 
+// ---------- judge dashboard ----------
+export interface FleetMachine {
+  machine_id: string;
+  name: string;
+  owner_name: string;
+  owner_language: string;
+  state: string;
+  anomaly_threshold: number | null;
+  last_ts: string | null;
+  health_index: number | null;
+  anomaly_score: number | null;
+  open_event_id: string | null;
+  open_event_status: string | null;
+  top_fault: string | null;
+  top_confidence: number | null;
+  rul_days_low: number | null;
+  pending_plan_id: string | null;
+}
+
+export interface Stats {
+  machines: number;
+  monitoring: number;
+  open_alerts: number;
+  alerts_total: number;
+  false_alarms: number;
+  plans_pending: number;
+  repairs_booked: number;
+  repairs_done: number;
+  diagnosis_checked: number;
+  diagnosis_correct: number;
+  alert_to_plan_median_s: number | null;
+  voice_decisions: number;
+  tap_decisions: number;
+}
+
+export interface TelemetryPoint {
+  ts: string;
+  anomaly_score: number | null;
+  health_index: number | null;
+  rpm_estimate: number | null;
+}
+
+export interface AuditEntry {
+  id: number;
+  ts: string;
+  actor: string;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  details: Record<string, unknown>;
+}
+
 export interface PlannerResult {
   status: "planned" | "failed" | "skipped";
   plan_id: string | null;
@@ -221,6 +273,14 @@ export const api = {
   decide: (planId: string, decision: "approve" | "reject", from_phone: string) =>
     post<Decision>(`/api/v1/plans/${planId}/decision`, { decision, channel: "tap", from_phone }),
   ownerMessages: (ownerId: string) => request<Message[]>(`/api/v1/owners/${ownerId}/messages`),
+  // Judge dashboard
+  fleet: () => request<FleetMachine[]>("/api/v1/fleet"),
+  stats: () => request<Stats>("/api/v1/stats"),
+  telemetry: (machineId: string, hours = 24) =>
+    request<{ points: TelemetryPoint[]; downsampled: boolean; total_rows: number }>(
+      `/api/v1/machines/${machineId}/telemetry?from=${encodeURIComponent(new Date(Date.now() - hours * 3_600_000).toISOString())}&max_points=400`),
+  events: (machineId: string) => request<AnomalyEvent[]>(`/api/v1/events?machine_id=${machineId}`),
+  audit: (machineId: string, limit = 400) => request<AuditEntry[]>(`/api/v1/audit?machine_id=${machineId}&limit=${limit}`),
   // Feedback: the mechanic's job card, the owner's false alarm
   jobCard: (jobId: string, body: { actual_fault: ActualFault; parts_replaced: string[]; notes: string; from_phone: string }) =>
     post<{ job: Job; event_status: string; machine_state: string; diagnosis_correct: boolean | null }>(`/api/v1/jobs/${jobId}/job-card`, body),

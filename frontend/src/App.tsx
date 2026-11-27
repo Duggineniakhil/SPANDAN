@@ -1,6 +1,7 @@
 import { Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
 import Monitor from "./pages/Monitor";
 import Setup from "./pages/Setup";
@@ -25,12 +26,14 @@ export default function App() {
         <div className="nav-links">
           <NavLink to="/setup">Setup</NavLink>
           <NavLink to="/monitor">Live monitor</NavLink>
+          <NavLink to="/dashboard">Dashboard</NavLink>
         </div>
       </nav>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/setup" element={<Setup />} />
         <Route path="/monitor" element={<Monitor />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<Landing />} />
       </Routes>
     </>

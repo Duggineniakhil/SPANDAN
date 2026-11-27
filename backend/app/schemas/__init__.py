@@ -362,3 +362,39 @@ class VoiceReplyOut(BaseModel):
     question: str | None = None
     decision: DecisionOut | None = None  # for approve/reject
     say: SpokenOut
+
+
+# ---------- Dashboard (M2-35) ----------
+
+class FleetMachine(BaseModel):
+    machine_id: uuid.UUID
+    name: str
+    owner_name: str
+    owner_language: str
+    state: str
+    anomaly_threshold: float | None
+    last_ts: datetime | None
+    health_index: float | None
+    anomaly_score: float | None
+    open_event_id: uuid.UUID | None
+    open_event_status: str | None
+    top_fault: str | None
+    top_confidence: float | None
+    rul_days_low: float | None
+    pending_plan_id: uuid.UUID | None
+
+
+class StatsOut(BaseModel):
+    machines: int
+    monitoring: int
+    open_alerts: int
+    alerts_total: int
+    false_alarms: int
+    plans_pending: int
+    repairs_booked: int
+    repairs_done: int
+    diagnosis_checked: int          # job cards that say whether the diagnosis was right
+    diagnosis_correct: int
+    alert_to_plan_median_s: float | None  # event opened → first plan waiting for the owner
+    voice_decisions: int
+    tap_decisions: int

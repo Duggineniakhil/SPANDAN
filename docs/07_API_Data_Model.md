@@ -60,6 +60,12 @@ Response: `{"accepted": 58, "duplicates": 2, "rejected": []}`. Rows with an exis
 | POST | `/plans/{id}/voice-reply` | Multipart `audio` (≤ 30 s, ≤ 5 MB; WebM/OGG/M4A/MP3/WAV) + `from_phone` → `{transcript, intent, intent_source, action: approved\|rejected\|replanning\|reask\|use_buttons, attempt, question, decision, say: {lang, text, audio_url}}`. 403 wrong number (nothing sent to Gnani), 409 not pending, 413/415 bad audio, 503 STT failed (use the buttons) |
 | GET | `/voice/phrases/{lang}/{name}` | Cached fixed phrases: `reask`, `use_buttons`, `approved`, `rejected`, `replanning` |
 
+### Judge dashboard
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/fleet?limit=50` | Every machine, most recently active first: latest health/score, open alert, its top fault and days left, plan waiting |
+| GET | `/stats` | Headline numbers: machines, open/total alerts, plans waiting, repairs booked/done, diagnosis right per job cards, median alert → plan seconds, voice/tap replies, false alarms |
+
 ### Feedback
 | Method | Path | Purpose |
 |--------|------|---------|

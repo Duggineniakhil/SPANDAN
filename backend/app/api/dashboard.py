@@ -7,13 +7,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import AwareDatetime
 from sqlalchemy import Float, cast, false, func, literal, or_, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.events import OPEN_STATUSES
-from app.models import AUDIT_ACTORS, AnomalyEvent, AuditLog, Diagnosis, Job, Machine, Plan, Quote, Telemetry
-from app.schemas import (AnomalyEventOut, AuditOut, HealthOut, LastReading, LatestDiagnosisOut, TelemetryPoint,
-                         TelemetrySeries)
+from app.models import (AUDIT_ACTORS, AnomalyEvent, AuditLog, Diagnosis, Job, Machine, Owner, Plan, Quote,
+                        Telemetry)
+from app.schemas import (AnomalyEventOut, AuditOut, FleetMachine, HealthOut, LastReading, LatestDiagnosisOut, StatsOut,
+                         TelemetryPoint, TelemetrySeries)
 
 router = APIRouter(tags=["dashboard"])
 
@@ -153,3 +155,67 @@ def audit_log(
         by_plan = (AuditLog.details["plan_id"].astext.in_([str(p) for p in plan_ids]) if plan_ids else false())
         stmt = stmt.where(or_(AuditLog.entity_id.in_(ids), by_plan))
     return list(db.scalars(stmt.order_by(AuditLog.id.desc()).limit(limit)))
+
+
+# ---------- judge dashboard (M2-35) ----------
+
+@router.get("/fleet", response_model=list[FleetMachine])
+def fleet(limit: Annotated[int, Query(ge=1, le=200)] = 50, db: Session = Depends(get_db)) -> list[FleetMachine]:
+    """Every machine at a glance, most recently active first: latest reading, open alert, its top fault
+    and days left, and a plan waiting for the owner."""
+    last = (select(Telemetry.machine_id, Telemetry.ts, Telemetry.health_index, Telemetry.anomaly_score)
+            .ext(distinct_on(Telemetry.machine_id)).order_by(Telemetry.machine_id, Telemetry.ts.desc()).subquery())
+    rows = db.execute(
+        select(Machine, Owner.name, Owner.language, last.c.ts, last.c.health_index, last.c.anomaly_score)
+        .join(Owner, Owner.id == Machine.owner_id).outerjoin(last, last.c.machine_id == Machine.id)
+        .order_by(func.coalesce(last.c.ts, Machine.created_at).desc()).limit(limit)).all()
+    ids = [r.Machine.id for r in rows]
+    events = {e.machine_id: e for e in db.scalars(
+        select(AnomalyEvent).where(AnomalyEvent.machine_id.in_(ids), AnomalyEvent.status.in_(OPEN_STATUSES))
+        .order_by(AnomalyEvent.started_at))}  # latest open event per machine wins
+    ev_ids = [e.id for e in events.values()]
+    diags = {d.event_id: d for d in db.scalars(
+        select(Diagnosis).where(Diagnosis.event_id.in_(ev_ids)).order_by(Diagnosis.created_at))} if ev_ids else {}
+    pending = {p.event_id: p.id for p in db.scalars(
+        select(Plan).where(Plan.event_id.in_(ev_ids), Plan.state == "pending"))} if ev_ids else {}
+    out = []
+    for r in rows:
+        m, ev = r.Machine, events.get(r.Machine.id)
+        d = diags.get(ev.id) if ev else None
+        top = d.faults[0] if d and d.faults else {}
+        out.append(FleetMachine(
+            machine_id=m.id, name=m.name, owner_name=r.name, owner_language=r.language, state=m.state,
+            anomaly_threshold=m.anomaly_threshold, last_ts=r.ts, health_index=r.health_index,
+            anomaly_score=r.anomaly_score, open_event_id=ev.id if ev else None,
+            open_event_status=ev.status if ev else None, top_fault=top.get("fault"),
+            top_confidence=top.get("confidence"), rul_days_low=d.rul_days_low if d else None,
+            pending_plan_id=pending.get(ev.id) if ev else None))
+    return out
+
+
+@router.get("/stats", response_model=StatsOut)
+def stats(db: Session = Depends(get_db)) -> StatsOut:
+    """Headline numbers for the judge dashboard."""
+    count = lambda stmt: db.scalar(select(func.count()).select_from(stmt.subquery())) or 0  # noqa: E731
+    jobs_done = db.scalars(select(Job.job_card).where(Job.status == "done")).all()
+    checked = [jc for jc in jobs_done if jc and jc.get("diagnosis_correct") is not None]
+    first_plan = (select(Plan.event_id, func.min(Plan.created_at).label("at"))
+                  .where(Plan.state != "draft").group_by(Plan.event_id).subquery())
+    median = db.scalar(select(func.percentile_cont(0.5).within_group(
+        func.extract("epoch", first_plan.c.at - AnomalyEvent.created_at)))
+        .join(first_plan, first_plan.c.event_id == AnomalyEvent.id))
+    return StatsOut(
+        machines=count(select(Machine.id)),
+        monitoring=count(select(Machine.id).where(Machine.state == "monitoring")),
+        open_alerts=count(select(AnomalyEvent.id).where(AnomalyEvent.status.in_(OPEN_STATUSES))),
+        alerts_total=count(select(AnomalyEvent.id)),
+        false_alarms=count(select(AnomalyEvent.id).where(AnomalyEvent.status == "false_alarm")),
+        plans_pending=count(select(Plan.id).where(Plan.state == "pending")),
+        repairs_booked=count(select(Job.id)),
+        repairs_done=len(jobs_done),
+        diagnosis_checked=len(checked),
+        diagnosis_correct=sum(1 for jc in checked if jc["diagnosis_correct"]),
+        alert_to_plan_median_s=round(float(median), 1) if median is not None else None,
+        voice_decisions=count(select(Plan.id).where(Plan.decided_via == "voice")),
+        tap_decisions=count(select(Plan.id).where(Plan.decided_via == "tap")),
+    )

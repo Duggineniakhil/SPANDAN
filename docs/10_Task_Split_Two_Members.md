@@ -117,7 +117,7 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-32** Job-card endpoint → `feedback_labels`, close event, trigger new baseline (`app/feedback.py`; also records whether the diagnosis was right)
 - [x] **M2-33** False-alarm endpoint → label + per-machine threshold update (+5 % per false alarm since the last baseline, max +30 %)
 - [x] **M2-34** Server-side replay tool: stream C4 / CWRU / IMS run-to-failure sequences through the full pipeline without the phone (`python -m app.replay`; C4 format in `backend/app/replay/sources.py`; CWRU/IMS → C4 in `ml/spandan_ml/c4.py`)
-- [ ] **M2-35** Dashboard (Streamlit): live health chart, events, diagnosis + evidence, plan timeline, audit log
+- [x] **M2-35** Dashboard (Streamlit): live health chart, events, diagnosis + evidence, plan timeline, audit log (built as the web app's `/dashboard` page with React + Recharts, which doc 02 allows: same design, no second server; `GET /fleet`, `GET /stats`)
 
 ### Week 6–7 · Testing
 - [ ] **M2-36** Unit tests: idempotency, every rule branch, every state transition

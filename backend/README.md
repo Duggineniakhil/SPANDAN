@@ -1,6 +1,6 @@
 # SPANDAN backend
 
-FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-34 from `docs/10_Task_Split_Two_Members.md`.
+FastAPI + PostgreSQL. Covers tasks M2-01 – M2-05, M2-07 – M2-18, M2-20, M2-21, M2-24, M2-26 – M2-35 from `docs/10_Task_Split_Two_Members.md`.
 
 ## Run (Windows, Git Bash or PowerShell)
 
@@ -55,6 +55,7 @@ Tests use the `spandan_test` database and wipe it between tests.
 | GET | `/api/v1/voice/phrases/{lang}/{name}` | Cached fixed phrases (`reask`, `use_buttons`, `approved`, `rejected`, `replanning`) |
 | POST | `/api/v1/jobs/{id}/job-card` | Mechanic's job card: label, alert resolved, new baseline |
 | POST | `/api/v1/alerts/{id}/false-alarm` | Owner: label, pending plan withdrawn, threshold +5 % (max +30 %) |
+| GET | `/api/v1/fleet` / `/api/v1/stats` | Judge dashboard: all machines at a glance; headline numbers |
 | POST | `/api/v1/sim/reset` | Recreate sandbox dealers, parts, mechanics, calendars |
 | GET | `/api/v1/sim/messages?to_kind=` | What the sandbox dealers / mechanics were sent |
 

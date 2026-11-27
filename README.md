@@ -24,6 +24,10 @@ An injected bearing fault, start to finish, in the web app:
 6. The mechanic is booked and the dealer order confirmed; the owner pays at pickup.
 7. After the repair the mechanic's job card records what was really wrong (a training label) and the sensor learns the repaired machine's new normal.
 
+The judge dashboard (`/dashboard`) follows every alert step by step, from the first reading to the job card:
+
+![Judge dashboard: every machine, every decision](docs/images/dashboard.jpg)
+
 <table>
 <tr>
 <td width="50%"><img src="docs/images/monitor.png" alt="Live monitor: health ring, fault warning, fault injection"></td>
@@ -59,7 +63,7 @@ flowchart LR
 | Voice (Gnani STT/TTS) | ✅ | Plan as a Kannada/Hindi voice note; spoken reply → approve, reject, or "can it be tomorrow?" → new plan; unclear → asked again, then buttons |
 | Job card, false alarm | ✅ | Mechanic's job card → training label, alert closed, new baseline; owner's false alarm → threshold +5 % (max +30 %) |
 | Replay tool | ✅ | `python -m app.replay`: plays the phone (same features and detector) from CWRU / IMS / simulated runs to failure, end to end |
-| Dashboard | ⏳ | |
+| Judge dashboard | ✅ | `/dashboard` in the web app: all machines, headline numbers, health chart, diagnosis + evidence, each alert's step-by-step timeline (device, cloud, agent, owner, mechanic), audit log |
 | Sensor hardware (ESP32 + ADXL345) | ⏳ | After the software; the replay input uses the same format |
 
 ## Results so far
@@ -73,7 +77,7 @@ The splits never mix windows from one recording or bearing across train and test
 (only 4 IMS failures; resampling to 3.2 kHz costs accuracy): [doc 05](docs/05_ML_Models_Spec.md), and the
 [confusion matrix](ml/results/confusion_leave_one_load_out.png) and [RUL plot](ml/results/rul_ims.png).
 
-Tests: 222 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
+Tests: 225 backend (pytest, real Postgres, fake LLM), 10 ML, 11 web (vitest).
 
 ## Safety rules the code enforces
 - **The LLM proposes, plain code disposes.** The agent has no tool that buys, books or pays. Prices come from stored quotes, never from the model.
