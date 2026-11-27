@@ -1,0 +1,169 @@
+{
+  "version": "diagnosis-hgb-v1",
+  "classes": [
+    "bearing_ball",
+    "bearing_inner",
+    "bearing_outer",
+    "normal"
+  ],
+  "n_windows": 595,
+  "n_recordings": 55,
+  "features": [
+    "band_0_25",
+    "band_1000_1600",
+    "band_150_300",
+    "band_25_75",
+    "band_300_600",
+    "band_600_1000",
+    "band_75_150",
+    "crest",
+    "env_prom_bearing_ball",
+    "env_prom_bearing_inner",
+    "env_prom_bearing_outer",
+    "env_to_rms",
+    "half_order_ratio",
+    "harmonic_richness",
+    "kurtosis",
+    "ratio_2x_1x",
+    "rule_bearing_ball",
+    "rule_bearing_inner",
+    "rule_bearing_outer",
+    "rule_imbalance",
+    "rule_looseness",
+    "rule_misalignment",
+    "skew",
+    "spectral_centroid",
+    "spectral_flatness"
+  ],
+  "leave_one_load_out": {
+    "n": 595,
+    "accuracy": 0.8739,
+    "macro_f1": 0.8462,
+    "confusion": {
+      "labels": [
+        "bearing_ball",
+        "bearing_inner",
+        "bearing_outer",
+        "normal"
+      ],
+      "matrix": [
+        [
+          65,
+          13,
+          30,
+          0
+        ],
+        [
+          14,
+          80,
+          14,
+          0
+        ],
+        [
+          2,
+          2,
+          239,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          136
+        ]
+      ]
+    },
+    "unknown_rate": 0.0958,
+    "accuracy_when_confident": 0.9275
+  },
+  "grouped_5fold_by_recording": {
+    "n": 595,
+    "accuracy": 0.8487,
+    "macro_f1": 0.8209,
+    "confusion": {
+      "labels": [
+        "bearing_ball",
+        "bearing_inner",
+        "bearing_outer",
+        "normal"
+      ],
+      "matrix": [
+        [
+          69,
+          6,
+          33,
+          0
+        ],
+        [
+          24,
+          70,
+          11,
+          3
+        ],
+        [
+          12,
+          1,
+          230,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          136
+        ]
+      ]
+    },
+    "unknown_rate": 0.0924,
+    "accuracy_when_confident": 0.8815
+  },
+  "rules_only": {
+    "n": 595,
+    "accuracy": 0.6807,
+    "macro_f1": 0.5864,
+    "confusion": {
+      "labels": [
+        "bearing_ball",
+        "bearing_inner",
+        "bearing_outer",
+        "normal"
+      ],
+      "matrix": [
+        [
+          4,
+          1,
+          8,
+          95
+        ],
+        [
+          0,
+          74,
+          0,
+          34
+        ],
+        [
+          5,
+          1,
+          191,
+          46
+        ],
+        [
+          0,
+          0,
+          0,
+          136
+        ]
+      ]
+    }
+  },
+  "dataset": "CWRU drive end, resampled to 3.2 kHz",
+  "window_s": 2.0,
+  "hop_s": 1.0,
+  "recordings": {
+    "normal": 4,
+    "bearing_inner": 12,
+    "bearing_outer": 27,
+    "bearing_ball": 12
+  },
+  "runtime_s": 26.7
+}
