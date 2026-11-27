@@ -12,7 +12,7 @@ Three models, each validated separately. All code in `ml/`, Python 3.11, NumPy/S
 | **Our bench recordings** (doc 03 §5) | Domain check for all three models, live demo | Split by session |
 | **Real mill recording** (optional) | Normal-only; false-alarm rate | |
 
-Download scripts in `ml/data/get_*.py`; data is gitignored. Keep a `ml/data/MANIFEST.csv`: file, dataset, unit/machine ID, session, label, split.
+Training runs in **Kaggle notebooks** (`ml/notebooks/`, see `ml/README.md`) against the Kaggle mirrors (CWRU: `sufian79/cwru-mat-full-dataset` or `esraakhaled299/cwru-data`; IMS: `vinayak123tyagi/bearing-dataset`), so nothing is downloaded locally. The CWRU run writes `cwru_manifest.csv`: file, CWRU number, label, fault size, load, rpm, sampling rate, label source, split unit.
 
 ### Leakage rule (non-negotiable)
 Every window carries `unit_id` and `session_id`. Splits are made at that level using `GroupKFold`/explicit lists. No window from a test unit/session appears in training, including scaler fitting.
@@ -45,8 +45,13 @@ Protocol:
 | Metrics | Accuracy, macro-F1, confusion matrix; separate tables for CWRU (bearing classes) and bench (all classes) |
 
 Notes:
+- Classifier inputs are **scale-free only** (energy shares, ratios, kurtosis, crest, rule prominences/scores). Absolute RMS/peak/1×–3× amplitudes and shaft speed are excluded. CWRU's normal data and fault data were recorded at different rates, so their noise floors differ after resampling and would be a shortcut. Speed leaks the load.
+- Evaluation: leave-one-load-out (main), grouped 5-fold by recording, and the rules alone as a baseline.
 - CWRU has no imbalance/misalignment classes → those come from the bench (and rules).
-- Bearing geometry table in `ml/bearings.csv` (6204, 6205, 6305, UCP204…: n balls, Bd, Pd, contact angle).
+- Bearing geometry table in `backend/app/analytics/bearings.csv` (6205 and 6203 from CWRU, ZA-2115 from IMS; 6204, 6305, UC204 approximate until checked against datasheets), calculator in `bearings.py`. Computed orders match the published CWRU values (6205: BPFO 3.5848×, BPFI 5.4152×, 2×BSF 4.7135×, FTF 0.3983×).
+- **Rule scorer** (`backend/app/analytics/rules.py`, `rules-v1`): envelope spectrum (500–1,500 Hz band, Hilbert) peaks at BPFO / BPFI / 2×BSF ±2 % with harmonics and sidebands, scored by prominence over the local noise floor; imbalance from 1× vs the machine's baseline; misalignment from 2×/1× and axial/radial; looseness from 3×–10× harmonics and half-orders. Each fault gets a score in [0, 1] plus an evidence sentence; `RuleReport.features()` feeds the classifier.
+  - For a 6205, 3×BPFO (10.75×) and 2×BPFI (10.83×) fall inside the same ±2 % window, so the fundamental carries most of the weight and harmonics only confirm.
+  - Thresholds were set on simulated windows (`backend/app/sim/vibration.py`): every fault ranked first from severity 0.3, 0/30 healthy windows flagged, mild faults never misread. **They must be re-checked on CWRU / IMS / bench data (M2-23).**
 - If top-1 confidence < 0.5 → output `unknown` and recommend an inspection (no RUL).
 
 ## 3. Model 3 — Remaining useful life (RUL)

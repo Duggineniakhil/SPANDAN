@@ -95,11 +95,11 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-18** Approval only accepted from the owner's registered device/number
 
 ### Week 3–5 · Diagnosis + RUL
-- [ ] **M2-19** CWRU + NASA IMS loaders; resample CWRU to 3.2 kHz; split by load/recording (CWRU) and by bearing (IMS)
-- [ ] **M2-20** Bearing geometry table + BPFO/BPFI/BSF/FTF calculator
-- [ ] **M2-21** Rule scorer: envelope-spectrum peaks at fault frequencies ± 2 % + harmonics; 1×/2×/harmonics for imbalance/misalignment/looseness
-- [ ] **M2-22** Classifier (HistGradientBoosting) on features + rule scores; calibrated top-3 + evidence string; `unknown` when confidence < 0.5
-- [ ] **M2-23** Evaluate diagnosis: accuracy, macro-F1, confusion matrix (CWRU)
+- [x] **M2-19** CWRU + NASA IMS loaders; resample CWRU to 3.2 kHz; split by load/recording (CWRU) and by bearing (IMS) (`ml/spandan_ml/`, run on Kaggle)
+- [x] **M2-20** Bearing geometry table + BPFO/BPFI/BSF/FTF calculator
+- [x] **M2-21** Rule scorer: envelope-spectrum peaks at fault frequencies ± 2 % + harmonics; 1×/2×/harmonics for imbalance/misalignment/looseness
+- [ ] **M2-22** Classifier (HistGradientBoosting) on features + rule scores; calibrated top-3 + evidence string; `unknown` when confidence < 0.5 (code ready: `ml/notebooks/01_cwru_diagnosis.ipynb`; train on Kaggle)
+- [ ] **M2-23** Evaluate diagnosis: accuracy, macro-F1, confusion matrix (CWRU) (code ready; numbers come from the Kaggle run)
 - [ ] **M2-24** RUL: exponential fit + bootstrap interval → `{low, high}` or `insufficient_data`
 - [ ] **M2-25** Evaluate RUL on IMS leave-one-bearing-out: MAE at life checkpoints, interval coverage, width
 - [ ] **M2-26** Analytics worker: on anomaly event → diagnosis + RUL → `diagnoses` row → trigger agent

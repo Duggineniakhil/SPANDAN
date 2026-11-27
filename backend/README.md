@@ -61,6 +61,11 @@ events are still diagnosed but not planned. Run `POST /api/v1/sim/reset` once so
 Code: `app/agent/` (tools, provider wrapper, loop, prompt), `app/sim/` (sandbox), `app/events.py`,
 `app/analytics/diagnosis_v0.py` (placeholder diagnosis; RUL is a labelled placeholder until M2-24).
 
+Diagnosis building blocks (M2-20, M2-21): `app/analytics/bearings.py` + `bearings.csv` (fault frequencies from bearing
+geometry), `signal.py` (Welch and envelope spectra), `rules.py` (physics rule scorer with evidence), and
+`app/sim/vibration.py` (simulated raw windows for tests and replay). Not yet wired into the event flow: that
+happens with the analytics worker (M2-26), which needs raw windows from the replay tool.
+
 ## Approval engine
 
 `app/approval/`: state machine, owner decision, executor, reminder/expiry sweep and message templates

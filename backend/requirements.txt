@@ -7,3 +7,5 @@ pydantic>=2.9
 pydantic-settings>=2.6
 google-genai>=1.30
 groq>=0.30
+numpy>=2.1
+scipy>=1.14

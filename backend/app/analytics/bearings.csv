@@ -1,0 +1,7 @@
+model,n_elements,ball_diameter_mm,pitch_diameter_mm,contact_angle_deg,source
+6205,9,7.94,39.04,0,"CWRU drive-end bearing (SKF 6205-2RS JEM); published BPFO 3.5848x"
+6203,8,6.746,28.50,0,"CWRU fan-end bearing (SKF 6203-2RS JEM); published BPFO 3.0530x"
+ZA-2115,16,8.407,71.50,15.17,"NASA IMS test rig (Rexnord ZA-2115, double row)"
+6204,8,7.938,33.50,0,"approximate: pitch = (bore+OD)/2; check the maker's datasheet"
+6305,8,10.319,44.50,0,"approximate: check the maker's datasheet"
+UC204,8,7.938,33.50,0,"approximate: insert bearing of UCP204, same size class as 6204; check the maker's datasheet"

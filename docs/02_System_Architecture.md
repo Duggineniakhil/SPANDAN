@@ -101,7 +101,7 @@ spandan/
 │   ├── alembic/
 │   ├── tests/
 │   └── docker-compose.yml
-├── ml/
+├── ml/                       # Member 2 part: spandan_ml/ (loaders, features, diagnosis), notebooks/ (Kaggle)
 │   ├── data/                 # (gitignored) MIMII, CWRU, IMS, bench recordings
 │   ├── features/             # shared feature code (must match Kotlin implementation)
 │   ├── notebooks/
