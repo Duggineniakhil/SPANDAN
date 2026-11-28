@@ -4,15 +4,18 @@
  * system, agent, owner, mechanic) and the raw audit log. Read-only; refreshes every few seconds.
  */
 import { Activity, AlertTriangle, Bot, Cpu, Mic, RefreshCw, User, Wrench } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { healthColor } from "../components/Charts";
+import { Tilt } from "../components/Tilt";
+import { can3D } from "../three/support";
 import {
   api, type AnomalyEvent, type AuditEntry, type EventDetail, type FleetMachine, type Stats, type TelemetryPoint,
 } from "../lib/api";
 
 const REFRESH_MS = 5000;
+const FleetFloor = lazy(() => import("../three/FleetFloor"));
 
 const FAULT: Record<string, string> = {
   bearing_outer: "Bearing outer race", bearing_inner: "Bearing inner race", bearing_ball: "Bearing ball",
@@ -112,6 +115,17 @@ export default function Dashboard() {
       </header>
       {error && <p className="error small">Backend: {error}</p>}
       {stats && <Kpis s={stats} />}
+      {can3D() && fleet.length > 0 && (
+        <section className="card floor-card">
+          <div className="card-head">
+            <h2>Mill floor</h2>
+            <span className="muted small">glow = health · red pulse = open alert · click a machine</span>
+          </div>
+          <Suspense fallback={<div className="floor-canvas" />}>
+            <FleetFloor fleet={fleet} selected={selected} onSelect={(id) => setParams({ machine: id })} />
+          </Suspense>
+        </section>
+      )}
       <div className="dash-grid">
         <Fleet fleet={fleet} selected={selected} onSelect={(id) => setParams({ machine: id })} />
         {selected ? <MachineView key={selected} machineId={selected} tick={tick}
@@ -135,7 +149,7 @@ function Kpis({ s }: { s: Stats }) {
   return (
     <section className="kpis">
       {items.map(([label, value, sub]) => (
-        <div key={label} className="kpi"><span className="kicker">{label}</span><b>{value}</b><em className="muted small">{sub}</em></div>
+        <Tilt key={label} className="kpi" max={10} lift={14}><span className="kicker">{label}</span><b>{value}</b><em className="muted small">{sub}</em></Tilt>
       ))}
     </section>
   );

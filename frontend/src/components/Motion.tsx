@@ -71,15 +71,16 @@ function ScrubWord({ word, progress, range }: { word: string; progress: MotionVa
   return <motion.span style={{ opacity }} aria-hidden>{word} </motion.span>;
 }
 
-/** Fades and lifts its children when scrolled into view. */
+/** Rises out of the page in depth (tilted back, further away) when scrolled into view. */
 export function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 60, rotateX: 22, z: -120 }}
+      whileInView={{ opacity: 1, y: 0, rotateX: 0, z: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+      style={{ transformPerspective: 1100, transformOrigin: "50% 100%" }}
     >
       {children}
     </motion.div>

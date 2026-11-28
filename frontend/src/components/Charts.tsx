@@ -7,23 +7,40 @@ export function healthColor(h: number | null): string {
   return h >= 70 ? "#ccff00" : h >= 40 ? "#f2f2f2" : "#ff4d3d";
 }
 
+/** A hex colour darkened toward black (k = 0 black, 1 unchanged). */
+function shade(hex: string, k: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (s: number) => Math.round(((n >> s) & 255) * k).toString(16).padStart(2, "0");
+  return `#${ch(16)}${ch(8)}${ch(0)}`;
+}
+
 export function HealthRing({ health, size = 220, label }: { health: number | null; size?: number; label?: string }) {
   const r = 42;
   const c = 2 * Math.PI * r;
   const h = health ?? 0;
   const color = healthColor(health);
+  // Extruded in CSS 3D: the arc is stacked LAYERS deep (back layers darker), the stack tilts back and sways.
+  const LAYERS = 7;
   return (
     <div className="health-ring" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 100 100" width={size} height={size}>
-        <circle cx="50" cy="50" r={r} fill="none" stroke="#1a1a1a" strokeWidth="6" />
-        <motion.circle
-          cx="50" cy="50" r={r} fill="none" stroke={color} strokeLinecap="butt"
-          strokeDasharray={c} transform="rotate(-90 50 50)" strokeWidth={6}
-          animate={{ strokeDashoffset: c * (1 - h / 100), stroke: color }}
-          transition={{ type: "spring", stiffness: 60, damping: 18 }}
-          style={{ filter: `drop-shadow(0 0 8px ${color}55)` }}
-        />
-      </svg>
+      <div className="ring3d">
+        {Array.from({ length: LAYERS }, (_, i) => {
+          const front = i === LAYERS - 1;
+          return (
+            <svg key={i} viewBox="0 0 100 100" width={size} height={size} className="ring3d-layer"
+              style={{ transform: `translateZ(${(i - LAYERS + 1) * 2.2}px)`, opacity: front ? 1 : 0.18 + (0.5 * i) / LAYERS }}>
+              <circle cx="50" cy="50" r={r} fill="none" stroke={front ? "#1a1a1a" : "#0d0d0d"} strokeWidth="6" />
+              <motion.circle
+                cx="50" cy="50" r={r} fill="none" stroke={color} strokeLinecap="butt"
+                strokeDasharray={c} transform="rotate(-90 50 50)" strokeWidth={6}
+                animate={{ strokeDashoffset: c * (1 - h / 100), stroke: front ? color : shade(color, 0.35 + (0.4 * i) / LAYERS) }}
+                transition={{ type: "spring", stiffness: 60, damping: 18 }}
+                style={front ? { filter: `drop-shadow(0 0 8px ${color}66)` } : undefined}
+              />
+            </svg>
+          );
+        })}
+      </div>
       <div className="health-ring-label">
         <motion.span key={health ?? "none"} initial={{ scale: 0.8, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} className="health-value" style={{ color }}>
           {health === null ? "—" : `${h}%`}

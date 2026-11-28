@@ -2,14 +2,19 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle, Bell, CheckCircle2, CloudUpload, Info, Pause, Play, RotateCcw, Wifi, WifiOff, Wrench, XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { HealthRing, SpectrumChart, Waveform, healthColor, type Marker } from "../components/Charts";
 import RepairPanel from "../components/RepairPanel";
+import { Tilt } from "../components/Tilt";
 import { api, session, type Machine, type Owner } from "../lib/api";
 import { BASELINE_WINDOWS, Gateway, type GatewayState, type LogEntry } from "../lib/gateway";
 import { BPFO_RATIO, FAULT_LABELS, type FaultType } from "../lib/signal";
+import { can3D } from "../three/support";
+
+const MotorTwin = lazy(() => import("../three/MotorTwin"));
+const Waterfall = lazy(() => import("../three/Waterfall"));
 
 const FAULTS: { id: FaultType; emoji: string }[] = [
   { id: "none", emoji: "OK" },
@@ -96,6 +101,7 @@ export default function Monitor() {
   if (!state || !machine) return <div className="page center-page"><div className="loader" /></div>;
 
   const gw = gwRef.current!;
+  const use3D = can3D();
   const learning = state.phase === "baseline";
   const status = learning ? "Learning normal vibration" : state.alertActive ? "Fault warning" : state.phase === "monitoring" ? "Running normally" : "Idle";
   const chartData = state.history.map((p, i) => ({ i, score: Number(p.score?.toFixed(2)), threshold: p.threshold }));
@@ -135,7 +141,7 @@ export default function Monitor() {
       </AnimatePresence>
 
       <div className="monitor-grid">
-        <section className="card health-card">
+        <Tilt className="card health-card" max={6} lift={10}>
           <HealthRing health={learning ? null : state.health} label={learning ? "learning…" : "machine health"} />
           <div className="status-chip" style={{ borderColor: learning ? "#f2f2f2" : healthColor(state.health), color: learning ? "#f2f2f2" : healthColor(state.health) }}>
             <span className="dot" style={{ background: "currentColor" }} /> {status}
@@ -152,9 +158,22 @@ export default function Monitor() {
             <div><dt>Speed</dt><dd>{Math.round(state.rpm)} rpm</dd></div>
             <div><dt>Readings</dt><dd>{state.windowCount}</dd></div>
           </dl>
-        </section>
+        </Tilt>
 
-        <section className="card controls-card">
+        {use3D && (
+          <section className="card twin-card">
+            <div className="card-head">
+              <h2>Digital twin</h2>
+              <span className="muted small">{state.fault === "none" ? "drag to turn" : `${FAULT_LABELS[state.fault]} · ${Math.round(state.severity * 100)}%`}</span>
+            </div>
+            <Suspense fallback={<div className="twin-canvas" />}>
+              <MotorTwin health={learning ? null : state.health} fault={state.fault} severity={state.severity}
+                rpm={state.rpm} running={state.running} alert={state.alertActive} />
+            </Suspense>
+          </section>
+        )}
+
+        <section className={`card controls-card ${use3D ? "wide" : ""}`}>
           <h2><Wrench size={18} /> Test the machine</h2>
           <p className="muted small">Inject a fault into the simulated motor and watch SPANDAN react.</p>
           <div className="fault-grid">
@@ -232,6 +251,15 @@ export default function Monitor() {
           <div className="card-head"><h2>Envelope spectrum</h2><span className="muted small">bearing impacts</span></div>
           <div className="chart-box short"><SpectrumChart spectrum={state.envSpectrum} maxHz={500} markers={envMarkers} color="#e8e8e8" /></div>
         </section>
+
+        {use3D && (
+          <section className="card chart-card wide">
+            <div className="card-head"><h2>Spectrum over time</h2><span className="muted small">3D waterfall · drag to turn</span></div>
+            <Suspense fallback={<div className="waterfall-canvas" />}>
+              <Waterfall spectrum={state.spectrum} maxHz={1600} />
+            </Suspense>
+          </section>
+        )}
 
         <section className="card log-card">
           <h2>Events</h2>

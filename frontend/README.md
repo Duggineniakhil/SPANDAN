@@ -24,6 +24,25 @@ The dev server proxies `/api` to the backend and adds the bearer token, so the t
 | `/setup` | Registers owner + machine in the backend, then starts baseline learning |
 | `/monitor` | Live monitor: health ring, anomaly score vs threshold, waveform, spectrum, envelope spectrum (BPFO), fault injection, offline mode, upload status, event log, and the cloud panel: diagnosis + days left, the agent's repair plan with Approve/Reject, owner's messages |
 
+| `/dashboard` | Judge dashboard: every machine, headline numbers, health chart, diagnosis, alert timeline, audit log |
+
+## 3D (`src/three/`)
+
+Built with three.js + React Three Fiber; every model is made from simple shapes in code (no downloaded models or HDRs).
+
+| Where | What |
+|-------|------|
+| Landing hero | A pinned scroll story: the motor with the SPANDAN sensor turns x-ray, its bearing's outer race cracks, vibration ripples spread, health falls 96 → 41 %, the camera zooms into the bearing, the plan card and "ಹೌದು" appear, then it is repaired (97 %). Numbers in `story.ts` drive both the model and the captions |
+| Landing, "inside the bearing" | A 6205 bearing pulls apart as it scrolls in; hover a part (in 3D or the list) to see the frequency it fails at (BPFO 172 Hz, BPFI 260 Hz, 2×BSF 226 Hz, FTF 19 Hz) |
+| `/monitor` | Digital twin driven by the live readings: imbalance wobbles at 1×, looseness rattles, bearing wear buzzes and the casing goes x-ray to show the damage; plus a 3D spectrum waterfall of the last 48 readings |
+| `/dashboard` | "Mill floor": each machine as a small motor on a plinth, glowing in its health colour, alerts pulse red; click one to select it |
+| Everywhere (CSS 3D) | Cards tilt toward the mouse with a glare, sections rise in from depth, the health ring is extruded, pages swing in on navigation |
+
+three.js loads lazily (its own ~260 kB gzip chunk) and only on devices that get 3D: not with "reduce motion",
+under 4 GB RAM or 2 CPU cores, or without WebGL. Those get the 2D site (video hero, flat charts). Force it with
+`?3d=on` / `?3d=off`. Canvases stop rendering when scrolled off screen. Labels on 3D objects are plain HTML moved
+by projecting their 3D point (`PinLayer` in `kit.tsx`).
+
 ## How detection works (`src/lib/`)
 
 | File | Role |

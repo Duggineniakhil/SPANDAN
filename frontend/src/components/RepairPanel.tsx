@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BellOff, Bot, CalendarClock, Check, ClipboardCheck, MessageSquare, Package, RefreshCw, ShieldCheck, Stethoscope, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import JobCardForm, { ACTUAL_FAULTS } from "./JobCardForm";
+import { Tilt } from "./Tilt";
 import VoicePanel from "./VoicePanel";
 import { api, type EventDetail, type Health, type Job, type Message, type Owner, type Plan, type PlanAction } from "../lib/api";
 
@@ -255,7 +256,8 @@ function PlanCard({ plan, owner, busy, onDecide, onVoice, failBy }: {
     rejected: "Rejected by the owner", expired: "Expired (no reply)", cancelled: "Cancelled",
   };
   return (
-    <motion.div className={`plan-card state-${plan.state}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+    <Tilt className="plan-tilt" max={4} lift={10}>
+      <motion.div className={`plan-card state-${plan.state}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
       <div className="plan-head">
         <span className="kicker">Repair plan</span>
         <span className={`plan-state ${plan.state}`}>{plan.state === "executed" && <Check size={13} />} {stateLabel[plan.state]}</span>
@@ -289,7 +291,8 @@ function PlanCard({ plan, owner, busy, onDecide, onVoice, failBy }: {
       ) : plan.state === "executed" ? (
         <p className="small">Mechanic booked, dealer order confirmed, downtime scheduled. The system never pays: the owner pays at pickup.</p>
       ) : null}
-    </motion.div>
+      </motion.div>
+    </Tilt>
   );
 }
 
