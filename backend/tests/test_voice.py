@@ -110,6 +110,9 @@ def audits(action):
     ("ಸರಿ ಇಲ್ಲ", None),                         # both sides → the LLM decides
     ("theek nahi hai", None),
     ("haan but can it be on Monday please", None),  # long reply → the LLM decides
+    ("ಹೌದು, ಆದರೆ ಸೋಮವಾರ ಬನ್ನಿ.", None),       # short but conditional: was a false approval in the voice eval
+    ("हाँ, पर सोमवार को", None), ("yes but monday", None),
+    ("ಓಕೆ, ಮಾಡಿ", "approve"), ("हाँ जी, कर दो", "approve"), ("ಈಗ ಬೇಡ", "reject"), ("ಬ್ಯಾಡ.", "reject"), ("अभी नहीं", "reject"),
     ("   ", "unclear"),
 ])
 def test_keyword_rules(text, expected):

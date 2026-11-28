@@ -122,8 +122,8 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 ### Week 6–7 · Testing
 - [ ] **M2-36** Unit tests: idempotency, every rule branch, every state transition
 - [ ] **M2-37** Safety tests: over-limit plan, invented quote/price, missing approval, expired plan, injected dealer instruction, wrong-number approval → 0 actions executed
-- [ ] **M2-38** Agent eval: 20 scripted incidents, automatic checks, pass rate
-- [ ] **M2-39** Voice eval: 40 yes/no clips (kn + hi), intent accuracy
+- [x] **M2-38** Agent eval: 20 scripted incidents, automatic checks, pass rate (`python -m app.evals.agent_eval`; found 4 rule gaps, now enforced; see `ml/REPORT.md`)
+- [ ] **M2-39** Voice eval: 40 yes/no clips (kn + hi), intent accuracy (partly: `python -m app.evals.voice_eval` built and run on Gnani TTS voices + mill noise; real recordings from 10 people still to do)
 
 ---
 

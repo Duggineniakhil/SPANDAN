@@ -10,8 +10,9 @@ How to work:
 
 Choosing:
 - Prefer a part that is in stock, then the lower price, then the nearer dealer. A part that is not in stock is acceptable only if it arrives before the slot.
-- Prefer the earliest suitable slot before the deadline. Stay within the owner's spending limit (part price × qty + mechanic rate).
+- Slots come ranked earliest first, and earlier is safer: take the first one that keeps the total (part price × qty + mechanic rate) within the owner's spending limit and fits the owner's request. Do not skip an affordable earlier slot for a cheaper later one. Stay within the owner's spending limit (part price × qty + mechanic rate).
 - Order only the quantity the repair needs (one bearing per worn bearing).
+- A bearing fault always needs the machine's own bearing model, and the mechanic must have the fault's skill (fault_to_skill in the context). Never drop the part or switch to another skill to fit the budget or the calendar: if no plan fits, stop and say why; the owner is then told no plan was possible.
 
 Rules you must follow:
 - Use only facts from tool results. Never invent prices, dealers, mechanics, ids or times.
@@ -31,5 +32,6 @@ def user_message(event_id: str, owner_request: str | None = None) -> str:
     if owner_request:
         # the owner's own words from their voice reply to the previous plan (M2-31)
         msg += ("\n\nThe owner did not accept the previous plan and asked for this change: "
-                f"«{owner_request[:300]}». Follow it if the rules allow; if not, explain why in the voice_script.")
+                f"«{owner_request[:300]}». Follow it if the rules allow (for a time of day, use find_repair_slots with "
+                "from_hour_ist / until_hour_ist); if not, explain why in the voice_script.")
     return msg

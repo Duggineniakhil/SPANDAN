@@ -1,5 +1,7 @@
 # SPANDAN ML (Member 2: diagnosis + RUL)
 
+All results, with caveats, in one place: **[REPORT.md](REPORT.md)** (diagnosis, days left, phone detector, agent and voice evals).
+
 Training runs on **Kaggle** (free CPU, datasets already hosted there). The notebooks clone this public repo,
 so the model is trained on the same signal-processing and rule code the backend runs
 (`backend/app/analytics/`).
@@ -28,6 +30,7 @@ rate, and says where each label came from (`filename` or the `cwru_number` insid
 | `spandan_ml/rul_eval.py` | RUL leave-one-bearing-out on the IMS indicator CSVs (runs locally): `python -m spandan_ml.rul_eval results results` → `rul_config_v1.json`, `rul_eval_report.json`, `rul_ims.png` |
 | `spandan_ml/c4.py` | CWRU / IMS → C4 replay sessions (`python -m spandan_ml.c4 cwru <root> <out>`, `... ims <root> <out> --test 2 --bearing 1`), then `cd backend && python -m app.replay <out>/<session>` |
 | `spandan_ml/pipelines.py` | The two end-to-end runs (also a CLI: `python -m spandan_ml.pipelines cwru <root> <out>`) |
+| `data/voice/` | Your own voice clips for the voice eval (`kn_yes_s01.ogg` …). Personal data: `ml/data/` is gitignored; only the score report is committed |
 | `tests/` | Loaders and pipelines on small fake datasets laid out like the Kaggle mirrors |
 
 ## Rules that keep the numbers honest

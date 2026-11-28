@@ -20,6 +20,9 @@ from app.models import AnomalyEvent, Dealer, Diagnosis, Machine, Mechanic, Mecha
 from app.sim.replies import dealer_reply, mechanic_reply
 from app.sim.seed import IST, SITE
 
+# The skill each fault needs; a bearing fault also needs the machine's bearing (rules, not the model).
+FAULT_SKILL = {"bearing_outer": "bearing", "bearing_inner": "bearing", "bearing_ball": "bearing",
+               "imbalance": "balancing", "looseness": "tightening", "misalignment": "alignment"}
 SKILLS = ["bearing", "alignment", "balancing", "motor", "electrical", "belt", "tightening", "general"]
 QUOTE_TTL = timedelta(hours=24)
 PLAN_TTL = timedelta(hours=48)
@@ -119,7 +122,10 @@ def get_machine_context(ctx: AgentContext) -> dict:
             "days_left": {"low": d.rul_days_low, "high": d.rul_days_high, "status": d.rul_status} if d else None,
             "repair_deadline": _ist(deadline) if deadline else None,
         },
-        "fault_to_skill_hint": {"bearing_outer": "bearing", "imbalance": "balancing", "looseness": "tightening"},
+        "fault_to_skill": FAULT_SKILL,
+        "rules": "A bearing fault needs a quote for the machine's bearing_model (qty 1). The mechanic must have the "
+                 "fault's skill. If that is impossible within the limit, deadline and idle hours, do not submit a "
+                 "different plan: say why no plan is possible.",
     }
 
 
@@ -162,9 +168,13 @@ def request_quote(ctx: AgentContext, dealer_id: str, part_code: str, qty: int) -
     }
 
 
-def find_repair_slots(ctx: AgentContext, skill: str) -> dict:
+def find_repair_slots(ctx: AgentContext, skill: str, from_hour_ist: int | None = None,
+                      until_hour_ist: int | None = None) -> dict:
     if skill not in SKILLS:
         raise ToolError(f"skill must be one of {SKILLS}")
+    for h in (from_hour_ist, until_hour_ist):
+        if h is not None and not (isinstance(h, int) and 0 <= h <= 24):
+            raise ToolError("from_hour_ist / until_hour_ist must be whole hours 0-24")
     deadline = _deadline(ctx)
     earliest = ctx.now + MIN_LEAD
     stmt = (select(MechanicSlot, Mechanic).join(Mechanic, MechanicSlot.mechanic_id == Mechanic.id)
@@ -172,6 +182,11 @@ def find_repair_slots(ctx: AgentContext, skill: str) -> dict:
     if deadline:
         stmt = stmt.where(MechanicSlot.start_at <= deadline)
     rows = [(s, m) for s, m in ctx.db.execute(stmt).all() if _in_idle_window(ctx.owner, s.start_at, s.end_at)]
+    # optional time of day, e.g. the owner asked for "afternoon, after 2 pm" (from_hour_ist=14)
+    if from_hour_ist is not None:
+        rows = [(s, m) for s, m in rows if s.start_at.astimezone(IST).hour >= from_hour_ist]
+    if until_hour_ist is not None:
+        rows = [(s, m) for s, m in rows if s.end_at.astimezone(IST).hour + s.end_at.astimezone(IST).minute / 60 <= until_hour_ist]
     # Rules rank: earliest first (less risk of failure), then cheaper.
     rows.sort(key=lambda r: (r[0].start_at, r[1].rate_inr))
     slots = [{
@@ -231,6 +246,10 @@ def submit_plan(ctx: AgentContext, quote_id: str, slot_id: str, fault_code: str,
             errors.append("the slot is after the repair deadline (earliest predicted failure)")
         if not _in_idle_window(ctx.owner, slot.start_at, slot.end_at):
             errors.append("the slot is outside the owner's idle hours")
+        # found by the agent eval: an out-of-stock bearing (2 days) with the mechanic booked for tomorrow
+        if quote and quote.lead_time_days and slot.start_at < ctx.now + timedelta(days=quote.lead_time_days):
+            errors.append(f"the part arrives in {quote.lead_time_days} day(s) ({_ist(ctx.now + timedelta(days=quote.lead_time_days))}); "
+                          "the slot starts before that")
 
     # --- cost vs owner's limit ---
     part_cost = (quote.unit_price_inr * quote.qty) if quote and quote.unit_price_inr and not errors else 0
@@ -257,6 +276,16 @@ def submit_plan(ctx: AgentContext, quote_id: str, slot_id: str, fault_code: str,
     faults = {f["fault"]: f for f in (ctx.diagnosis.faults if ctx.diagnosis else [])}
     if fault_code not in faults:
         errors.append(f"fault_code must be one of the diagnosed faults: {list(faults)}")
+    else:
+        need = FAULT_SKILL.get(fault_code)
+        if need and mech and need not in (mech.skills or []):
+            errors.append(f"{fault_code} needs a mechanic with the '{need}' skill; {mech.name} does not have it")
+        if fault_code.startswith("bearing_"):
+            want = (ctx.machine.bearing_model or "").upper()
+            if quote is None:
+                errors.append(f"a bearing fault needs the replacement bearing: quote {want or 'the bearing'} (qty 1)")
+            elif want and quote.part_code.upper() != want:
+                errors.append(f"the quoted part {quote.part_code} is not this machine's bearing {want}")
 
     if errors:
         ctx.failed_submissions += 1
@@ -323,8 +352,13 @@ TOOLS: list[ToolSpec] = [
              _obj({"dealer_id": {"type": "string"}, "part_code": {"type": "string"},
                    "qty": {"type": "integer", "minimum": 1, "maximum": 4}}, ["dealer_id", "part_code", "qty"]), request_quote),
     ToolSpec("find_repair_slots",
-             "Find free mechanic slots with a skill, before the repair deadline and inside the owner's idle hours. Ranked earliest first.",
-             _obj({"skill": {"type": "string", "enum": SKILLS}}, ["skill"]), find_repair_slots),
+             "Find free mechanic slots with a skill, before the repair deadline and inside the owner's idle hours. "
+             "Ranked earliest first. Optional from_hour_ist / until_hour_ist narrow the time of day (e.g. the owner "
+             "asked for the afternoon: from_hour_ist 14).",
+             _obj({"skill": {"type": "string", "enum": SKILLS},
+                   "from_hour_ist": {"type": "integer", "minimum": 0, "maximum": 24, "description": "slot starts at or after this hour (IST)"},
+                   "until_hour_ist": {"type": "integer", "minimum": 0, "maximum": 24, "description": "slot ends by this hour (IST)"}},
+                  ["skill"]), find_repair_slots),
     ToolSpec("check_mechanic_availability",
              "Ask the mechanic to confirm a slot (no commitment). Returns available true/false and their reply.",
              _obj({"slot_id": {"type": "string"}}, ["slot_id"]), check_mechanic_availability),

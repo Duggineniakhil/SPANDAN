@@ -63,6 +63,7 @@ flowchart LR
 | Voice (Gnani STT/TTS) | ✅ | Plan as a Kannada/Hindi voice note; spoken reply → approve, reject, or "can it be tomorrow?" → new plan; unclear → asked again, then buttons |
 | Job card, false alarm | ✅ | Mechanic's job card → training label, alert closed, new baseline; owner's false alarm → threshold +5 % (max +30 %) |
 | Replay tool | ✅ | `python -m app.replay`: plays the phone (same features and detector) from CWRU / IMS / simulated runs to failure, end to end |
+| Evaluations | ✅ | [ml/REPORT.md](ml/REPORT.md): diagnosis, days left, detector, the agent on 20 scripted incidents with real LLMs, voice replies through Gnani |
 | Judge dashboard | ✅ | `/dashboard` in the web app: all machines, headline numbers, health chart, diagnosis + evidence, each alert's step-by-step timeline (device, cloud, agent, owner, mechanic), audit log |
 | Sensor hardware (ESP32 + ADXL345) | ⏳ | After the software; the replay input uses the same format |
 

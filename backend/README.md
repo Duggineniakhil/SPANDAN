@@ -125,6 +125,30 @@ current baseline. A false alarm stores a label, withdraws a pending plan and rai
 `threshold_base`. If the owner marks a false alarm while the agent is still planning, `submit_plan` re-reads the
 event under a row lock and the planner stops (`agent_stopped`) instead of reopening it.
 
+## Evaluations (M2-38, M2-39)
+
+Results and caveats: [`ml/REPORT.md`](../ml/REPORT.md); JSON reports in `ml/results/`.
+
+```bash
+# Agent: 20 scripted incidents with real LLMs, in its own database (spandan_eval, created and migrated automatically)
+.venv/Scripts/python -m app.evals.agent_eval --out ../ml/results --pause 20      # ~7 min; --only 4,9 reruns some
+# Voice: clips named <kn|hi>_<yes|no|question|unclear>_<speaker>.<ogg|m4a|wav…>, through ffmpeg → Gnani STT → intent
+.venv/Scripts/python -m app.evals.voice_eval ../ml/data/voice_synth --synth      # Gnani TTS voices + mill noise
+.venv/Scripts/python -m app.evals.voice_eval ../ml/data/voice                    # real recordings (never committed)
+```
+
+Each agent incident is checked against an oracle computed from the same data: outcome (plan vs. no plan possible),
+nothing executed, owner told, within the limit, before the deadline, inside idle hours, the machine's bearing, qty 1,
+cheapest usable part, part arrives in time, right skill, earliest slot, owner's language and script, and the owner's
+request when re-planning. The report is written after every incident, so an interrupted run keeps what it did.
+An incident where no LLM could be reached (rate limit, outage) is retried, then reported "not scored", never as an
+agent failure. The eval found rule gaps, now enforced by `submit_plan`: a bearing fault must include the machine's
+own bearing; the mechanic must have the fault's skill; the slot must start after the part arrives (the agent had
+dropped the bearing to fit a ₹1,000 budget, booked a tightening mechanic when no bearing mechanic was free, and
+booked tomorrow for a part arriving in 2 days). `find_repair_slots` takes `from_hour_ist` / `until_hour_ist`, so
+"after 2 pm" can be followed. The voice eval found that "ಹೌದು, ಆದರೆ ಸೋಮವಾರ ಬನ್ನಿ" ("yes, but Monday", 4 words) was
+taken as a plain yes: keywords now decide only when every word is a yes/no word or a filler.
+
 ## Notes
 - 16 tables: the 13 from doc 07 plus `quotes`, `messages` and `raw_windows`. Location is lat/lng floats, not PostGIS.
 - `audit_log` is append-only: a database trigger blocks UPDATE and DELETE.

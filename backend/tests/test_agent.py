@@ -10,7 +10,7 @@ from app.agent.llm import ProviderError, ToolCall, ToolResult, Turn
 from app.agent.planner import run_planner
 from app.agent.tools import AgentContext, execute
 from app.db import SessionLocal
-from app.models import AnomalyEvent, AuditLog, Diagnosis, Machine, MechanicSlot, Owner, Plan
+from app.models import AnomalyEvent, AuditLog, Diagnosis, Machine, Mechanic, MechanicSlot, Owner, Plan
 from tests.test_events_sim import NORMAL, rows, setup_monitoring
 
 KANNADA_SCRIPT = "ಮೋಟಾರ್ ಬೇರಿಂಗ್ ಸವೆದಿದೆ. 4 ರಿಂದ 8 ದಿನ ಉಳಿದಿದೆ. ಒಟ್ಟು ₹1,950. ಭಾನುವಾರ 10:00. ಹೌದು ಅಥವಾ ಇಲ್ಲ?"
@@ -75,6 +75,18 @@ def test_slots_are_free_before_deadline_and_ranked(ctx):
     assert slot.status == "free"
 
 
+def test_slots_can_be_narrowed_to_the_afternoon(ctx):
+    """Found by the agent eval: 'send him after 2 pm' could not be followed when the 3 earliest slots were mornings."""
+    from app.sim.seed import IST
+    ctx.owner.idle_windows = []
+    out, err = call(ctx, "find_repair_slots", skill="bearing", from_hour_ist=14)
+    assert not err, out
+    for s in out["slots"]:
+        assert ctx.db.get(MechanicSlot, uuid.UUID(s["slot_id"])).start_at.astimezone(IST).hour >= 14
+    out, err = call(ctx, "find_repair_slots", skill="bearing", from_hour_ist=30)
+    assert err
+
+
 def test_zero_days_left_is_the_tightest_deadline_not_none(ctx):
     """Found by the replay tool: 0.0 days left was treated as 'no deadline' and a slot a day later was booked."""
     ctx.diagnosis.rul_days_low, ctx.diagnosis.rul_days_high, ctx.diagnosis.rul_status = 0.0, 0.02, "ok"
@@ -112,7 +124,8 @@ def test_submit_plan_builds_prices_server_side(ctx):
     assert ctx.event.status == "planned"
 
 
-@pytest.mark.parametrize("case", ["over_limit", "english_script", "foreign_quote", "unknown_fault", "no_numbers"])
+@pytest.mark.parametrize("case", ["over_limit", "english_script", "foreign_quote", "unknown_fault", "no_numbers",
+                                  "bearing_without_part", "wrong_bearing", "wrong_skill", "part_arrives_late"])
 def test_submit_plan_rules(ctx, case):
     qid, sid = _quote_and_slot(ctx)
     args = dict(quote_id=qid, slot_id=sid, fault_code="bearing_outer", summary_en="x", voice_script=KANNADA_SCRIPT)
@@ -126,8 +139,24 @@ def test_submit_plan_rules(ctx, case):
         args["fault_code"] = "gearbox"
     elif case == "no_numbers":
         args["voice_script"] = "ಬೇರಿಂಗ್ ಸವೆದಿದೆ"
+    elif case == "bearing_without_part":  # found by the agent eval: tight budget → it dropped the bearing
+        args["quote_id"] = "none"
+    elif case == "wrong_bearing":
+        ctx.machine.bearing_model = "6204-2RS"
+    elif case == "wrong_skill":  # found by the agent eval: no bearing mechanic free → it booked another skill
+        mech = ctx.db.get(Mechanic, ctx.db.get(MechanicSlot, uuid.UUID(sid)).mechanic_id)
+        mech.skills = ["tightening"]
+    elif case == "part_arrives_late":  # found by the agent eval: out-of-stock bearing, mechanic booked first
+        from app.models import Quote
+        q = ctx.db.get(Quote, uuid.UUID(qid))
+        slot = ctx.db.get(MechanicSlot, uuid.UUID(sid))
+        q.lead_time_days = int((slot.start_at - ctx.now).total_seconds() // 86400) + 1
     out, err = call(ctx, "submit_plan", **args)
     assert err and "rejected" in out["error"]
+    expect = {"bearing_without_part": "needs the replacement bearing", "wrong_bearing": "not this machine's bearing",
+              "wrong_skill": "'bearing' skill", "part_arrives_late": "the slot starts before that"}
+    if case in expect:
+        assert expect[case] in out["error"]
     assert ctx.plan_id is None and ctx.failed_submissions == 1
 
 

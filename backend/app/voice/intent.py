@@ -18,11 +18,19 @@ APPROVE = {
     "ok", "okay", "yes", "approve",
 }
 REJECT = {
-    "ಬೇಡ", "ಬೇಡಾ", "ಇಲ್ಲ", "beda", "illa", "bēḍa",
+    "ಬೇಡ", "ಬೇಡಾ", "ಬ್ಯಾಡ", "ಬ್ಯಾಡಾ", "ಇಲ್ಲ", "beda", "byada", "illa", "bēḍa",  # ಬ್ಯಾಡ: spoken North Karnataka form
     "नहीं", "नही", "ना", "मत", "nahi", "nahin", "mat",
     "no", "reject", "cancel",
 }
-# Short replies are decided by keywords; longer ones ("yes, but can it be Monday?") go to the LLM.
+# Words that may sit next to a yes/no without changing it ("yes, do it", "not now", "haan ji").
+FILLER = {
+    "ಮಾಡಿ", "ಮಾಡು", "ಬಿಡಿ", "ಈಗ", "ಜಿ", "ಸರ್", "ಅಣ್ಣ", "madi", "maadi", "bidi",
+    "जी", "कर", "करो", "दो", "दीजिए", "है", "अभी", "भाई", "साहब", "ji", "karo", "kar", "do", "abhi", "hai",
+    "please", "sir", "it", "now", "go", "ahead", "fine", "not",
+}
+# Short replies are decided by keywords, and only when every word is a yes/no word or a filler.
+# Anything else ("yes, but come on Monday", 4 words) goes to the LLM: found by the voice eval, where
+# "ಹೌದು, ಆದರೆ ಸೋಮವಾರ ಬನ್ನಿ" had been taken as a plain yes.
 MAX_KEYWORD_TOKENS = 4
 _SPLIT = re.compile(r"[\s.,!?।|\"'()\-:;]+")
 
@@ -49,9 +57,15 @@ def keyword_intent(text: str) -> str | None:
     if not words:
         return "unclear"
     yes, no = _has(words, APPROVE), _has(words, REJECT)
-    if len(words) <= MAX_KEYWORD_TOKENS and yes != no:
-        return "approve" if yes else "reject"
-    return None
+    if len(words) > MAX_KEYWORD_TOKENS or yes == no:
+        return None
+    known = set(FILLER)
+    for v in APPROVE | REJECT:
+        if _has(words, {v}):
+            known.update(v.split())
+    if any(w not in known for w in words):
+        return None  # an extra word may be a condition or a request: let the LLM decide
+    return "approve" if yes else "reject"
 
 
 CLASSIFY_TOOL = ToolDef(
