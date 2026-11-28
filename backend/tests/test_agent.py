@@ -1,7 +1,7 @@
 """Agent tools, rules and the planner loop, driven by a scripted fake model (no real LLM calls)."""
 import uuid
 from collections.abc import Callable, Generator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from app.agent.planner import run_planner
 from app.agent.tools import AgentContext, execute
 from app.db import SessionLocal
 from app.models import AnomalyEvent, AuditLog, Diagnosis, Machine, Mechanic, MechanicSlot, Owner, Plan
+from app.sim.seed import IST
 from tests.test_events_sim import NORMAL, rows, setup_monitoring
 
 KANNADA_SCRIPT = "ಮೋಟಾರ್ ಬೇರಿಂಗ್ ಸವೆದಿದೆ. 4 ರಿಂದ 8 ದಿನ ಉಳಿದಿದೆ. ಒಟ್ಟು ₹1,950. ಭಾನುವಾರ 10:00. ಹೌದು ಅಥವಾ ಇಲ್ಲ?"
@@ -125,7 +126,10 @@ def test_submit_plan_builds_prices_server_side(ctx):
 
 
 @pytest.mark.parametrize("case", ["over_limit", "english_script", "foreign_quote", "unknown_fault", "no_numbers",
-                                  "bearing_without_part", "wrong_bearing", "wrong_skill", "part_arrives_late"])
+                                  "bearing_without_part", "wrong_bearing", "wrong_skill", "part_arrives_late",
+                                  "two_bearings", "quote_without_price", "stale_quote", "unknown_slot", "slot_taken",
+                                  "slot_too_soon", "slot_after_deadline", "outside_idle_hours", "empty_script",
+                                  "script_too_long"])
 def test_submit_plan_rules(ctx, case):
     qid, sid = _quote_and_slot(ctx)
     args = dict(quote_id=qid, slot_id=sid, fault_code="bearing_outer", summary_en="x", voice_script=KANNADA_SCRIPT)
@@ -151,10 +155,39 @@ def test_submit_plan_rules(ctx, case):
         q = ctx.db.get(Quote, uuid.UUID(qid))
         slot = ctx.db.get(MechanicSlot, uuid.UUID(sid))
         q.lead_time_days = int((slot.start_at - ctx.now).total_seconds() // 86400) + 1
+    elif case in ("two_bearings", "quote_without_price", "stale_quote"):
+        from app.models import Quote
+        q = ctx.db.get(Quote, uuid.UUID(qid))
+        if case == "two_bearings":
+            q.qty = 2
+        elif case == "quote_without_price":
+            q.unit_price_inr = None
+        else:
+            q.created_at = ctx.now - timedelta(hours=25)
+    elif case == "unknown_slot":
+        args["slot_id"] = str(uuid.uuid4())
+    elif case in ("slot_taken", "slot_too_soon", "slot_after_deadline", "outside_idle_hours"):
+        slot = ctx.db.get(MechanicSlot, uuid.UUID(sid))
+        if case == "slot_taken":
+            slot.status = "booked"
+        elif case == "slot_too_soon":
+            slot.start_at, slot.end_at = ctx.now + timedelta(minutes=20), ctx.now + timedelta(hours=2)
+        elif case == "slot_after_deadline":
+            ctx.diagnosis.rul_days_low = 0.01
+        else:
+            ctx.owner.idle_windows = [{"dow": (slot.start_at.astimezone(IST).weekday() + 1) % 7, "start": "00:00", "end": "23:59"}]
+    elif case == "empty_script":
+        args["voice_script"] = "   "
+    elif case == "script_too_long":
+        args["voice_script"] = KANNADA_SCRIPT * 20
     out, err = call(ctx, "submit_plan", **args)
     assert err and "rejected" in out["error"]
     expect = {"bearing_without_part": "needs the replacement bearing", "wrong_bearing": "not this machine's bearing",
-              "wrong_skill": "'bearing' skill", "part_arrives_late": "the slot starts before that"}
+              "wrong_skill": "'bearing' skill", "part_arrives_late": "the slot starts before that",
+              "two_bearings": "orders 1 bearing", "quote_without_price": "has no price", "stale_quote": "older than 24 hours",
+              "unknown_slot": "unknown slot_id", "slot_taken": "no longer free", "slot_too_soon": "starts too soon",
+              "slot_after_deadline": "after the repair deadline", "outside_idle_hours": "outside the owner's idle hours",
+              "empty_script": "voice_script is empty", "script_too_long": "too long"}
     if case in expect:
         assert expect[case] in out["error"]
     assert ctx.plan_id is None and ctx.failed_submissions == 1

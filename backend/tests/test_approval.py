@@ -189,21 +189,39 @@ def test_sweep_endpoint(client, plan_id):
 
 # ---------- state machine ----------
 
-@pytest.mark.parametrize("frm,to,ok", [
-    ("draft", "pending", True), ("draft", "approved", False), ("pending", "executed", False),
-    ("pending", "approved", True), ("approved", "executed", True), ("approved", "pending", False),
-    ("rejected", "approved", False), ("expired", "approved", False), ("executed", "cancelled", False),
-])
-def test_transitions(plan_id, frm, to, ok):
+STATES = ["draft", "pending", "approved", "rejected", "expired", "executed", "cancelled"]
+ALLOWED = {("draft", "pending"), ("draft", "cancelled"), ("pending", "approved"), ("pending", "rejected"),
+           ("pending", "expired"), ("pending", "cancelled"), ("approved", "executed"), ("approved", "cancelled")}
+
+
+def test_transition_table_is_the_documented_one():
+    from app.approval.state import TRANSITIONS
+    assert set(TRANSITIONS) == set(STATES)
+    assert {(f, t) for f, tos in TRANSITIONS.items() for t in tos} == ALLOWED
+
+
+@pytest.mark.parametrize("frm", STATES)
+@pytest.mark.parametrize("to", STATES)
+def test_every_transition(plan_id, frm, to):
+    """All 49 pairs: the 8 allowed ones move and are audited; every other one is refused and changes nothing.
+    In particular nothing reaches 'approved' except from 'pending', and terminal states never move."""
     with SessionLocal() as db:
         plan = db.get(Plan, plan_id)
         plan.state = frm
-        if ok:
+        before = count(db, AuditLog, AuditLog.entity_id == plan.id)
+        if (frm, to) in ALLOWED:
             transition(db, plan, to, actor="system")
             assert plan.state == to
+            db.flush()
+            entry = db.scalars(select(AuditLog).where(AuditLog.entity_id == plan.id)
+                               .order_by(AuditLog.id.desc())).first()
+            assert entry.action == f"plan_{to}" and entry.details["from"] == frm
         else:
             with pytest.raises(TransitionError):
                 transition(db, plan, to, actor="system")
+            assert plan.state == frm
+            db.flush()
+            assert count(db, AuditLog, AuditLog.entity_id == plan.id) == before
         db.rollback()
 
 

@@ -120,8 +120,8 @@ Until the other side is ready, each member mocks the other: M1 uses a mock serve
 - [x] **M2-35** Dashboard (Streamlit): live health chart, events, diagnosis + evidence, plan timeline, audit log (built as the web app's `/dashboard` page with React + Recharts, which doc 02 allows: same design, no second server; `GET /fleet`, `GET /stats`)
 
 ### Week 6–7 · Testing
-- [ ] **M2-36** Unit tests: idempotency, every rule branch, every state transition
-- [ ] **M2-37** Safety tests: over-limit plan, invented quote/price, missing approval, expired plan, injected dealer instruction, wrong-number approval → 0 actions executed
+- [x] **M2-36** Unit tests: idempotency, every rule branch, every state transition (all 49 state pairs in `test_approval.py`; every `submit_plan` rule in `test_agent.py::test_submit_plan_rules`; telemetry rows, decisions, job cards and anomaly events are idempotent)
+- [x] **M2-37** Safety tests: over-limit plan, invented quote/price, missing approval, expired plan, injected dealer instruction, wrong-number approval → 0 actions executed (`tests/test_safety.py`, plus the control: the owner's yes executes exactly once)
 - [x] **M2-38** Agent eval: 20 scripted incidents, automatic checks, pass rate (`python -m app.evals.agent_eval`; found 4 rule gaps, now enforced; see `ml/REPORT.md`)
 - [ ] **M2-39** Voice eval: 40 yes/no clips (kn + hi), intent accuracy (partly: `python -m app.evals.voice_eval` built and run on Gnani TTS voices + mill noise; real recordings from 10 people still to do)
 

@@ -71,6 +71,15 @@ def test_owner_can_submit_and_a_wrong_diagnosis_is_recorded(client, job_id):
     assert card(client, uuid.uuid4(), OWNER_PHONE).status_code == 404
 
 
+def test_second_job_card_is_refused_and_adds_no_label(client, job_id):
+    """Idempotency: a double submit (retry on a bad network) must not add a second training label."""
+    phone = mechanic_phone(job_id)
+    assert card(client, job_id, phone).status_code == 200
+    n = len(labels())
+    r = card(client, job_id, phone, fault="imbalance")
+    assert r.status_code == 409 and len(labels()) == n
+
+
 def test_job_card_from_another_number_is_refused(client, job_id):
     r = card(client, job_id, "+919000000001")
     assert r.status_code == 403

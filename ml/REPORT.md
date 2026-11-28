@@ -147,3 +147,16 @@ studio-like speech; real owners speak faster, with dialect, code-mixing and a ph
 **The real test is the recorded set**: 10 people × 4 clips (kn yes/no, hi yes/no), WhatsApp voice notes named
 `kn_yes_s01.ogg` etc. in `ml/data/voice/` (kept out of git), scored with
 `python -m app.evals.voice_eval ../ml/data/voice` into `voice_eval_report.json`.
+
+## 6. End to end, twice in a row (Phase 4 exit)
+
+`python -m app.replay` against the running API, no manual steps between or during the runs (28 Nov 2026):
+
+| Run | Fault, owner | Diagnosis | Plan | Owner's reply (Gnani) | Result |
+|-----|--------------|-----------|------|------------------------|--------|
+| 1 | bearing outer race, Kannada | `bearing_outer` (correct) | bearing 6205-2RS + mechanic, ₹1,580 | "ಹೌದು", heard as "ಹೌದು" | executed → job card → new baseline |
+| 2 | imbalance, Hindi | `imbalance` (correct) | balancing mechanic, ₹450 | "हाँ", heard as "हाँ।" | executed → job card → new baseline |
+
+Safety tests (`backend/tests/test_safety.py`): over-limit plan, invented quote/price, no approval, expired plan,
+injected dealer instruction, approval from the wrong number (tap, SMS, voice) → **0 actions executed** in all 31
+attack cases; the owner's own yes executes exactly once.

@@ -143,7 +143,7 @@ cheapest usable part, part arrives in time, right skill, earliest slot, owner's 
 request when re-planning. The report is written after every incident, so an interrupted run keeps what it did.
 An incident where no LLM could be reached (rate limit, outage) is retried, then reported "not scored", never as an
 agent failure. The eval found rule gaps, now enforced by `submit_plan`: a bearing fault must include the machine's
-own bearing; the mechanic must have the fault's skill; the slot must start after the part arrives (the agent had
+own bearing, qty 1 (whatever a dealer's reply asks for); the mechanic must have the fault's skill; the slot must start after the part arrives (the agent had
 dropped the bearing to fit a ₹1,000 budget, booked a tightening mechanic when no bearing mechanic was free, and
 booked tomorrow for a part arriving in 2 days). `find_repair_slots` takes `from_hour_ist` / `until_hour_ist`, so
 "after 2 pm" can be followed. The voice eval found that "ಹೌದು, ಆದರೆ ಸೋಮವಾರ ಬನ್ನಿ" ("yes, but Monday", 4 words) was

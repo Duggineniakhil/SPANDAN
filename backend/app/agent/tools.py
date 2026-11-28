@@ -286,6 +286,8 @@ def submit_plan(ctx: AgentContext, quote_id: str, slot_id: str, fault_code: str,
                 errors.append(f"a bearing fault needs the replacement bearing: quote {want or 'the bearing'} (qty 1)")
             elif want and quote.part_code.upper() != want:
                 errors.append(f"the quoted part {quote.part_code} is not this machine's bearing {want}")
+            elif quote.qty != 1:  # one worn bearing → one bearing, whatever a dealer's reply asks for
+                errors.append(f"a bearing repair orders 1 bearing, not {quote.qty}; request a quote for qty 1")
 
     if errors:
         ctx.failed_submissions += 1
