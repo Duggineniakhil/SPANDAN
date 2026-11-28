@@ -19,12 +19,13 @@
 
 | Model | Metric | Dataset | Value |
 |-------|--------|---------|-------|
-| Anomaly (AE) | AUC / false alarms per week | MIMII (held-out IDs), bench | _TBD_ |
+| Anomaly (AE) | AUC / false alarms per week | MIMII (held-out IDs), bench | _TBD_ (Member 1, M1-13). Interim, the web/replay z-score detector: 0 false alerts in 1,200 healthy readings; alerts at 3–12 % fault severity (simulated) |
 | Anomaly (IF baseline) | AUC | same | _TBD_ |
-| Diagnosis | Accuracy, macro-F1, confusion matrix | CWRU (split by load), bench | _TBD_ |
-| RUL | MAE (days), interval coverage | NASA IMS (leave-one-bearing-out) | _TBD_ |
+| Diagnosis | Accuracy, macro-F1, confusion matrix | CWRU (split by load), bench | **87.4 %, macro-F1 0.85** (leave one load out); rules alone 68 %. Bench: _TBD_ |
+| RUL | MAE (days), interval coverage | NASA IMS (leave-one-bearing-out) | **MAE 1.67 d**, coverage 46 %; deadline (low end) before failure in **93 %** |
 | Bench end-to-end | Lead time before failure threshold | Bench progressive wear | _TBD_ |
-| Agent | Pass rate, unauthorised actions | 20 scripted incidents | _TBD_ |
+| Agent | Pass rate, unauthorised actions | 20 scripted incidents | **18/20, 0 unauthorised**; safety tests 31/31 attacks → 0 actions |
+| Voice | Yes/no accuracy, false approvals | 40 kn/hi replies (+40 noisy) | **80/80, 0 false approvals** on Gnani TTS voices; real recordings _TBD_ |
 
 ## 3. Demo script (5–7 minutes)
 
