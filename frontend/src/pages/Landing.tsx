@@ -8,7 +8,7 @@ import { CountUp, Reveal, RevealText, ScrubText, TypeCycle } from "../components
 import { Tilt } from "../components/Tilt";
 import { MEDIA } from "../media";
 import { can3D } from "../three/support";
-import { BearingSection, Story3D } from "./LandingStory";
+import { BearingSection } from "./LandingStory";
 
 const STEPS = [
   { n: "01", title: "Sense", text: "A clip-on vibration sensor on the motor streams readings to a phone in the mill.", Art: SensorArt, tag: "HARDWARE" },
@@ -31,7 +31,7 @@ export default function Landing() {
   const use3D = can3D();
   return (
     <div className="landing">
-      {use3D ? <Story3D /> : <VideoHero />}
+      <VideoHero />
 
       {/* ================= MARQUEE ================= */}
       <div className="marquee" aria-hidden>
@@ -147,7 +147,7 @@ export default function Landing() {
   );
 }
 
-/** 2D hero: the stock mill video (phones without 3D, reduced motion). */
+/** Hero: the stock mill video. */
 function VideoHero() {
   const [videoOk, setVideoOk] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
